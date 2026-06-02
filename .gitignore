@@ -1,0 +1,31 @@
+# Composer
+/vendor/
+composer.lock
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.phpstorm.meta.php
+_ide_helper.php
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PHPUnit
+.phpunit.result.cache
+.phpunit.cache/
+/coverage/
+/build/
+
+# Logs
+*.log
+/logs/
