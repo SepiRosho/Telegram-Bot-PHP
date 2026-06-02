@@ -252,4 +252,145 @@ class TelegramApi
     {
         return $this->http->post('getWebhookInfo');
     }
+
+    // -------------------------------------------------------------------------
+    // Venue & media group
+    // -------------------------------------------------------------------------
+
+    public function sendVenue(int|string $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): Message
+    {
+        return Message::fromArray($this->http->post('sendVenue', array_merge([
+            'chat_id' => $chatId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'title' => $title,
+            'address' => $address,
+        ], $options)));
+    }
+
+    public function sendMediaGroup(int|string $chatId, array $media, array $options = []): array
+    {
+        return $this->http->post('sendMediaGroup', array_merge([
+            'chat_id' => $chatId,
+            'media' => $media,
+        ], $options));
+    }
+
+    // -------------------------------------------------------------------------
+    // Inline queries
+    // -------------------------------------------------------------------------
+
+    public function answerInlineQuery(string $inlineQueryId, array $results, array $options = []): bool
+    {
+        return (bool) $this->http->post('answerInlineQuery', array_merge([
+            'inline_query_id' => $inlineQueryId,
+            'results' => $results,
+        ], $options));
+    }
+
+    // -------------------------------------------------------------------------
+    // Chat info
+    // -------------------------------------------------------------------------
+
+    public function getChat(int|string $chatId): array
+    {
+        return $this->http->post('getChat', ['chat_id' => $chatId]);
+    }
+
+    public function getChatMember(int|string $chatId, int $userId): array
+    {
+        return $this->http->post('getChatMember', [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+        ]);
+    }
+
+    public function getChatMemberCount(int|string $chatId): int
+    {
+        return (int) $this->http->post('getChatMemberCount', ['chat_id' => $chatId]);
+    }
+
+    public function leaveChat(int|string $chatId): bool
+    {
+        return (bool) $this->http->post('leaveChat', ['chat_id' => $chatId]);
+    }
+
+    public function exportChatInviteLink(int|string $chatId): string
+    {
+        return (string) $this->http->post('exportChatInviteLink', ['chat_id' => $chatId]);
+    }
+
+    public function createChatInviteLink(int|string $chatId, array $options = []): array
+    {
+        return $this->http->post('createChatInviteLink', array_merge([
+            'chat_id' => $chatId,
+        ], $options));
+    }
+
+    // -------------------------------------------------------------------------
+    // Chat member permissions
+    // -------------------------------------------------------------------------
+
+    public function restrictChatMember(int|string $chatId, int $userId, array $permissions, array $options = []): bool
+    {
+        return (bool) $this->http->post('restrictChatMember', array_merge([
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+            'permissions' => $permissions,
+        ], $options));
+    }
+
+    public function promoteChatMember(int|string $chatId, int $userId, array $options = []): bool
+    {
+        return (bool) $this->http->post('promoteChatMember', array_merge([
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+        ], $options));
+    }
+
+    public function setChatAdministratorCustomTitle(int|string $chatId, int $userId, string $customTitle): bool
+    {
+        return (bool) $this->http->post('setChatAdministratorCustomTitle', [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+            'custom_title' => $customTitle,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Files
+    // -------------------------------------------------------------------------
+
+    public function getFile(string $fileId): array
+    {
+        return $this->http->post('getFile', ['file_id' => $fileId]);
+    }
+
+    public function getUserProfilePhotos(int $userId, array $options = []): array
+    {
+        return $this->http->post('getUserProfilePhotos', array_merge([
+            'user_id' => $userId,
+        ], $options));
+    }
+
+    // -------------------------------------------------------------------------
+    // Bot commands
+    // -------------------------------------------------------------------------
+
+    public function setMyCommands(array $commands, array $options = []): bool
+    {
+        return (bool) $this->http->post('setMyCommands', array_merge([
+            'commands' => $commands,
+        ], $options));
+    }
+
+    public function getMyCommands(array $options = []): array
+    {
+        return $this->http->post('getMyCommands', $options);
+    }
+
+    public function deleteMyCommands(array $options = []): bool
+    {
+        return (bool) $this->http->post('deleteMyCommands', $options);
+    }
 }

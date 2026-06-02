@@ -166,4 +166,79 @@ class Bot
     {
         return static::getInstance()->api()->getWebhookInfo();
     }
+
+    public static function sendVenue(int|string $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): Message
+    {
+        return static::getInstance()->api()->sendVenue($chatId, $latitude, $longitude, $title, $address, $options);
+    }
+
+    public static function sendMediaGroup(int|string $chatId, array $media, array $options = []): array
+    {
+        return static::getInstance()->api()->sendMediaGroup($chatId, $media, $options);
+    }
+
+    public static function answerInlineQuery(string $inlineQueryId, array $results, array $options = []): bool
+    {
+        return static::getInstance()->api()->answerInlineQuery($inlineQueryId, $results, $options);
+    }
+
+    public static function getChat(int|string $chatId): array
+    {
+        return static::getInstance()->api()->getChat($chatId);
+    }
+
+    public static function getChatMember(int|string $chatId, int $userId): array
+    {
+        return static::getInstance()->api()->getChatMember($chatId, $userId);
+    }
+
+    public static function getChatMemberCount(int|string $chatId): int
+    {
+        return static::getInstance()->api()->getChatMemberCount($chatId);
+    }
+
+    public static function leaveChat(int|string $chatId): bool
+    {
+        return static::getInstance()->api()->leaveChat($chatId);
+    }
+
+    public static function exportChatInviteLink(int|string $chatId): string
+    {
+        return static::getInstance()->api()->exportChatInviteLink($chatId);
+    }
+
+    public static function createChatInviteLink(int|string $chatId, array $options = []): array
+    {
+        return static::getInstance()->api()->createChatInviteLink($chatId, $options);
+    }
+
+    public static function restrictChatMember(int|string $chatId, int $userId, array $permissions, array $options = []): bool
+    {
+        return static::getInstance()->api()->restrictChatMember($chatId, $userId, $permissions, $options);
+    }
+
+    public static function promoteChatMember(int|string $chatId, int $userId, array $options = []): bool
+    {
+        return static::getInstance()->api()->promoteChatMember($chatId, $userId, $options);
+    }
+
+    public static function getFile(string $fileId): array
+    {
+        return static::getInstance()->api()->getFile($fileId);
+    }
+
+    public static function setMyCommands(array $commands, array $options = []): bool
+    {
+        return static::getInstance()->api()->setMyCommands($commands, $options);
+    }
+
+    public static function getMyCommands(array $options = []): array
+    {
+        return static::getInstance()->api()->getMyCommands($options);
+    }
+
+    public static function deleteMyCommands(array $options = []): bool
+    {
+        return static::getInstance()->api()->deleteMyCommands($options);
+    }
 }
