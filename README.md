@@ -1,6 +1,6 @@
 # devflow/telegram-bot
 
-A clean PHP 8.1+ library for building Telegram bots. Static facade syntax, fluent routing, middleware pipeline, and premade database schemas. Works standalone or inside Laravel.
+A clean PHP 8.1+ library for building Telegram bots. Static facade syntax, fluent routing, middleware pipeline, premade database schemas, and a project scaffolder. Works standalone or inside Laravel.
 
 ## Requirements
 
@@ -14,7 +14,62 @@ A clean PHP 8.1+ library for building Telegram bots. Static facade syntax, fluen
 composer require devflow/telegram-bot
 ```
 
-## Quick Start
+---
+
+## Scaffolding a New Project
+
+The library ships a `devflow` CLI tool that generates a ready-to-use project structure — similar to `laravel new`.
+
+```bash
+composer require devflow/telegram-bot
+vendor/bin/devflow new my-telegram-bot
+cd my-telegram-bot
+composer install
+cp .env.example .env   # fill in BOT_TOKEN + DB credentials
+```
+
+This creates:
+
+```
+my-telegram-bot/
+├── app/
+│   ├── Commands/           ← /command handlers (StartCommand, HelpCommand pre-made)
+│   ├── Callbacks/          ← callback_data handlers
+│   ├── Middleware/         ← middleware (AuthMiddleware pre-made)
+│   ├── Flows/              ← multi-step wizard handlers
+│   └── Services/           ← business logic
+├── bootstrap/
+│   ├── app.php             ← Bot init, DB setup, all handler registrations
+│   └── helpers.php         ← env() helper
+├── config/bot.php          ← token, DB config
+├── public/webhook.php      ← entry point — point your webhook here
+├── .env + .env.example
+└── composer.json
+```
+
+Point your Telegram webhook at `https://yourdomain.com/public/webhook.php` and the bot is live.
+
+### Code generators
+
+Run these from inside your project to generate boilerplate files:
+
+```bash
+# Generate a /command handler → app/Commands/BroadcastCommand.php
+vendor/bin/devflow make:command BroadcastCommand
+
+# Generate a callback handler → app/Callbacks/ConfirmCallback.php
+vendor/bin/devflow make:callback ConfirmCallback
+
+# Generate a middleware class → app/Middleware/RateLimitMiddleware.php
+vendor/bin/devflow make:middleware RateLimitMiddleware
+
+# Generate a multi-step wizard → app/Flows/RegistrationFlow.php
+vendor/bin/devflow make:flow RegistrationFlow
+```
+
+---
+
+## Quick Start (without scaffolding)
 
 ```php
 <?php
@@ -374,6 +429,8 @@ $broadcast->progressPercent(); // float 0-100
 | `examples/03_wizard_flow.php` | Multi-step registration wizard |
 | `examples/04_middleware.php` | Ban check, logging, admin guard |
 | `examples/05_laravel.php` | Full Laravel integration walkthrough |
+
+For a full scaffolded project, run `vendor/bin/devflow new my-bot` — it generates the recommended folder structure with pre-made handlers and middleware.
 
 ---
 

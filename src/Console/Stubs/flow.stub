@@ -1,0 +1,40 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Devflow\TelegramBot\Context;
+use Devflow\TelegramBot\Handlers\HandlerInterface;
+
+class {{ ClassName }} implements HandlerInterface
+{
+    public function handle(Context $ctx): void
+    {
+        match ($ctx->step()) {
+            '{{ FlowSlug }}.step1' => $this->step1($ctx),
+            '{{ FlowSlug }}.step2' => $this->step2($ctx),
+            default                => $this->start($ctx),
+        };
+    }
+
+    private function start(Context $ctx): void
+    {
+        $ctx->setStep('{{ FlowSlug }}.step1');
+        $ctx->reply('Step 1: enter your name.');
+    }
+
+    private function step1(Context $ctx): void
+    {
+        $ctx->setTemp('name', $ctx->text());
+        $ctx->setStep('{{ FlowSlug }}.step2');
+        $ctx->reply('Step 2: enter your age.');
+    }
+
+    private function step2(Context $ctx): void
+    {
+        $name = $ctx->temp('name');
+        $age  = $ctx->text();
+
+        $ctx->clearFlow();
+        $ctx->reply("Done! Name: {$name}, Age: {$age}");
+    }
+}

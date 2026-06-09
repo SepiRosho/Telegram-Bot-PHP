@@ -1,0 +1,15 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Devflow\TelegramBot\Context;
+use Devflow\TelegramBot\Middleware\MiddlewareInterface;
+
+class {{ ClassName }} implements MiddlewareInterface
+{
+    public function handle(Context $ctx, callable $next): void
+    {
+        // TODO: add your logic here, then call $next to continue
+        $next($ctx);
+    }
+}
