@@ -434,6 +434,21 @@ For a full scaffolded project, run `vendor/bin/devflow new my-bot` — it genera
 
 ---
 
+## Guides
+
+Step-by-step documentation in [`docs/`](docs/README.md):
+
+- [01 — Installation & project structure](docs/01-installation.md)
+- [02 — Your first bot & webhook setup](docs/02-first-bot.md)
+- [03 — Handlers (commands, text, callbacks)](docs/03-handlers.md)
+- [04 — The Context object](docs/04-context.md)
+- [05 — Middleware](docs/05-middleware.md)
+- [06 — Database setup](docs/06-database.md)
+- [07 — Wizard flows](docs/07-flows.md)
+- [08 — Local development with ngrok](docs/08-local-dev.md)
+
+---
+
 ## License
 
 MIT
