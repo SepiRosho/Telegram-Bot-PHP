@@ -1,0 +1,19 @@
+#!/usr/bin/env php
+<?php
+
+// Support both local dev (vendor/bin) and installed-as-dependency layouts
+$autoload = __DIR__ . '/../../../autoload.php';
+if (!file_exists($autoload)) {
+    $autoload = __DIR__ . '/../vendor/autoload.php';
+}
+
+if (!file_exists($autoload)) {
+    fwrite(STDERR, "Cannot find autoload.php. Run `composer install` first.\n");
+    exit(1);
+}
+
+require_once $autoload;
+
+use Devflow\TelegramBot\Console\Application;
+
+(new Application())->run($argv);

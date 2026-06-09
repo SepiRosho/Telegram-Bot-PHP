@@ -1,0 +1,18 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Devflow\TelegramBot\Context;
+use Devflow\TelegramBot\Handlers\HandlerInterface;
+
+class {{ ClassName }} implements HandlerInterface
+{
+    public function handle(Context $ctx): void
+    {
+        $data = $ctx->callbackData();
+
+        $ctx->answerCallback();
+
+        // TODO: handle $data
+    }
+}
