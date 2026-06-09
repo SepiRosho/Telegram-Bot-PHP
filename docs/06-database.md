@@ -15,7 +15,7 @@ The database is **optional**. Your bot works without it. You only need it if you
 
 | Table | Purpose |
 |---|---|
-| `telegram_users` | One row per user. Stores name, username, role, ban status, wizard step, temp data, referral code. |
+| `telegram_users` | One row per user. Stores name, username, role, ban status, wizard step, temp data, referral code, and rate-limit hit timestamps. |
 | `bot_settings` | Key/value store for bot configuration (welcome message, feature flags, etc.) |
 | `telegram_broadcasts` | Queue for bulk messages sent to all users. |
 

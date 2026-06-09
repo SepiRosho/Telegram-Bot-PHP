@@ -216,6 +216,84 @@ Bot::onCommand('ban', function (Context $ctx) {
 
 ---
 
+## Step handlers — matching a specific wizard step
+
+`Bot::onStep()` runs only when:
+1. The user sends a plain text message (not a command)
+2. Their current step (stored in the database) matches the given step name
+
+```php
+Bot::onStep('register.ask_name', function (Context $ctx) {
+    $ctx->setTemp('name', $ctx->text());
+    $ctx->setStep('register.ask_age');
+    $ctx->reply('How old are you?');
+});
+
+Bot::onStep('register.ask_age', function (Context $ctx) {
+    $ctx->setTemp('age', $ctx->text());
+    $ctx->clearFlow();
+    $ctx->reply("Done! Name: {$ctx->temp('name')}, Age: {$ctx->temp('age')}");
+});
+```
+
+> **Requires database.** `onStep()` reads `$ctx->step()` which comes from the `telegram_users` table. See [06-database.md](06-database.md).
+
+Step routes are checked **after** all other route types, so a command like `/cancel` will still match even if the user is mid-flow.
+
+---
+
+## Splitting handlers across files
+
+For bots with many commands, putting everything in one place gets messy. Use handler groups to split bot logic into separate files.
+
+Each group is a class with a static `register()` method:
+
+```php
+// app/Handlers/UserHandlers.php
+namespace App\Handlers;
+
+class UserHandlers
+{
+    public static function register(): void
+    {
+        Bot::onCommand('start', \App\Commands\StartCommand::class);
+        Bot::onCommand('help',  \App\Commands\HelpCommand::class);
+        Bot::onText(function (Context $ctx) {
+            $ctx->reply($ctx->text());
+        });
+    }
+}
+
+// app/Handlers/AdminHandlers.php
+namespace App\Handlers;
+
+class AdminHandlers
+{
+    public static function register(): void
+    {
+        Bot::onCommand('stats', function (Context $ctx) {
+            if (!$ctx->user()?->isAdmin()) return;
+            $ctx->reply('Stats: all good.');
+        });
+    }
+}
+```
+
+Load them in `bootstrap/app.php`:
+
+```php
+Bot::loadHandlers([
+    \App\Handlers\UserHandlers::class,
+    \App\Handlers\AdminHandlers::class,
+]);
+```
+
+`loadHandlers()` calls `::register()` on each class in order. The handlers are registered in the same order as always — `UserHandlers` routes come before `AdminHandlers` routes.
+
+A new scaffolded project already has `app/Handlers/UserHandlers.php` and `app/Handlers/AdminHandlers.php` created for you. See [10-handler-groups.md](10-handler-groups.md) for more detail.
+
+---
+
 ## Next step
 
 [04-context.md](04-context.md) — Everything you can do with the `$ctx` object inside a handler.

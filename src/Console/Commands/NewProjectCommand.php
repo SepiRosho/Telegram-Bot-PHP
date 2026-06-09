@@ -49,6 +49,8 @@ class NewProjectCommand
             'app/Callbacks',
             'app/Middleware',
             'app/Flows',
+            'app/Handlers',
+            'app/Texts',
             'app/Services',
             'bootstrap',
             'config',
@@ -71,15 +73,19 @@ class NewProjectCommand
             '.env.example'               => $this->envExample(),
             '.env'                       => $this->envExample(),
             '.gitignore'                 => $this->gitignore(),
+            '.htaccess'                  => $this->htaccess(),
             'bootstrap/helpers.php'      => $this->bootstrapHelpers(),
             'bootstrap/app.php'          => $this->bootstrapApp(),
             'public/webhook.php'         => $this->publicWebhook(),
-            'app/Commands/StartCommand.php'         => $this->startCommand(),
-            'app/Commands/HelpCommand.php'          => $this->helpCommand(),
-            'app/Middleware/AuthMiddleware.php'     => $this->authMiddleware(),
-            'app/Callbacks/.gitkeep'                => '',
-            'app/Flows/.gitkeep'                    => '',
-            'app/Services/.gitkeep'                 => '',
+            'app/Commands/StartCommand.php'             => $this->startCommand(),
+            'app/Commands/HelpCommand.php'              => $this->helpCommand(),
+            'app/Middleware/AuthMiddleware.php'         => $this->authMiddleware(),
+            'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
+            'app/Handlers/AdminHandlers.php'            => $this->adminHandlers(),
+            'app/Texts/WelcomeText.php'                 => $this->welcomeText(),
+            'app/Callbacks/.gitkeep'                    => '',
+            'app/Flows/.gitkeep'                        => '',
+            'app/Services/.gitkeep'                     => '',
         ];
 
         foreach ($files as $relative => $content) {
@@ -173,10 +179,9 @@ class NewProjectCommand
         <?php
 
         use Devflow\TelegramBot\Bot;
-        use Devflow\TelegramBot\Context;
 
         // ─── Database (optional) ───────────────────────────────────────────────
-        // Enables $ctx->user(), $ctx->step(), $ctx->setTemp(), banning, etc.
+        // Enables $ctx->user(), $ctx->step(), $ctx->setTemp(), banning, rate limiting.
         //
         // To activate:
         //   1. Import SQL files from vendor/devflow/telegram-bot/database/migrations/
@@ -212,20 +217,14 @@ class NewProjectCommand
 
         // Bot::use(\App\Middleware\AuthMiddleware::class);
 
-        // ─── Commands ──────────────────────────────────────────────────────────
+        // ─── Handlers ──────────────────────────────────────────────────────────
+        // Each handler group class has a static register() method.
+        // Split complex bots by adding more groups to this array.
 
-        Bot::onCommand('start', \App\Commands\StartCommand::class);
-        Bot::onCommand('help',  \App\Commands\HelpCommand::class);
-
-        // ─── Callback queries ──────────────────────────────────────────────────
-
-        // Bot::onCallbackQuery('confirm_*', \App\Callbacks\ConfirmCallback::class);
-
-        // ─── Text messages ─────────────────────────────────────────────────────
-
-        Bot::onText(function (Context $ctx) {
-            $ctx->reply($ctx->text());
-        });
+        Bot::loadHandlers([
+            \App\Handlers\UserHandlers::class,
+            // \App\Handlers\AdminHandlers::class,
+        ]);
         PHP;
     }
 
@@ -356,6 +355,134 @@ class NewProjectCommand
     private function error(string $msg): void
     {
         echo "\033[31m✗\033[0m {$msg}\n";
+    }
+
+    private function htaccess(): string
+    {
+        return <<<'HTACCESS'
+        # Disable directory listing
+        Options -Indexes
+
+        # Protect sensitive files
+        <FilesMatch "\.(env|json|lock|gitignore|md|stub)$">
+            Order Deny,Allow
+            Deny from all
+        </FilesMatch>
+
+        <IfModule mod_rewrite.c>
+            RewriteEngine On
+
+            # Block direct access to sensitive directories
+            RewriteRule ^(app|bootstrap|config|vendor|database|docs|bin)(/.*)?$ - [F,L]
+
+            # Allow only the webhook entry point
+            RewriteRule ^public/webhook\.php$ - [L]
+
+            # Block all other PHP files and bare directory access
+            RewriteRule \.php$ - [F,L]
+            RewriteRule .* - [F,L]
+        </IfModule>
+        HTACCESS;
+    }
+
+    private function userHandlers(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        namespace App\Handlers;
+
+        use Devflow\TelegramBot\Bot;
+        use Devflow\TelegramBot\Context;
+
+        class UserHandlers
+        {
+            public static function register(): void
+            {
+                Bot::onCommand('start', \App\Commands\StartCommand::class);
+                Bot::onCommand('help',  \App\Commands\HelpCommand::class);
+
+                // Example: handle a specific wizard step
+                // Bot::onStep('register.ask_name', function (Context $ctx) {
+                //     $ctx->setTemp('name', $ctx->text());
+                //     $ctx->setStep('register.ask_age');
+                //     $ctx->reply('How old are you?');
+                // });
+
+                Bot::onText(function (Context $ctx) {
+                    $ctx->reply($ctx->text());
+                });
+            }
+        }
+        PHP;
+    }
+
+    private function adminHandlers(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        namespace App\Handlers;
+
+        use Devflow\TelegramBot\Bot;
+        use Devflow\TelegramBot\Context;
+
+        class AdminHandlers
+        {
+            public static function register(): void
+            {
+                Bot::onCommand('stats', function (Context $ctx) {
+                    if (!$ctx->user()?->isAdmin()) {
+                        return;
+                    }
+
+                    $ctx->reply('Bot stats: everything is running.');
+                });
+
+                Bot::onCommand('ban', function (Context $ctx) {
+                    if (!$ctx->user()?->isAdmin()) {
+                        return;
+                    }
+
+                    $args   = $ctx->message()->commandArgs();
+                    $userId = (int) ($args[0] ?? 0);
+
+                    if (!$userId) {
+                        $ctx->reply('Usage: /ban <user_id>');
+                        return;
+                    }
+
+                    \Devflow\TelegramBot\Database\Models\TelegramUser::where('telegram_id', $userId)
+                        ->first()
+                        ?->ban('Banned by admin');
+
+                    $ctx->reply("User {$userId} banned.");
+                });
+            }
+        }
+        PHP;
+    }
+
+    private function welcomeText(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        namespace App\Texts;
+
+        use Devflow\TelegramBot\Support\BotText;
+
+        class WelcomeText extends BotText
+        {
+            protected static function translations(): array
+            {
+                return [
+                    'en' => 'Hello, {name}! Welcome to the bot.',
+                    // 'fa' => 'سلام، {name}! به ربات خوش آمدید.',
+                ];
+            }
+        }
+        PHP;
     }
 
     private function info(string $msg): void

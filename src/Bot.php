@@ -78,6 +78,16 @@ class Bot
         return static::getInstance()->onUpdate($handler);
     }
 
+    public static function onStep(string $step, callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onStep($step, $handler);
+    }
+
+    public static function loadHandlers(array|string $handlers): BotInstance
+    {
+        return static::getInstance()->loadHandlers($handlers);
+    }
+
     public static function use(callable|string $middleware): BotInstance
     {
         return static::getInstance()->use($middleware);

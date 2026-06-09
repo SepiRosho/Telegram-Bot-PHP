@@ -24,15 +24,29 @@ class Router
 
     public function dispatch(Update $update, TelegramApi $api, array $config = [], ?object $userRepository = null): void
     {
+        $ctx = null;
+
         foreach ($this->routes as $route) {
-            if ($this->matches($route, $update)) {
+            // Non-step routes: check without context first (cheap)
+            if ($route->type !== 'step' && !$this->matches($route, $update)) {
+                continue;
+            }
+
+            // Lazy-create context on first match candidate
+            if ($ctx === null) {
                 $ctx = new Context($update, $api, $config);
                 if ($userRepository !== null) {
                     $ctx->setUserRepository($userRepository);
                 }
-                $this->runWithMiddleware($ctx, $route->handler);
-                return;
             }
+
+            // Step routes need the loaded user to check step value
+            if ($route->type === 'step' && !$this->matchesStep($route->pattern, $update, $ctx)) {
+                continue;
+            }
+
+            $this->runWithMiddleware($ctx, $route->handler);
+            return;
         }
     }
 
@@ -61,6 +75,14 @@ class Router
             return true;
         }
         return $update->message->command() === ltrim($command, '/');
+    }
+
+    private function matchesStep(string $pattern, Update $update, Context $ctx): bool
+    {
+        if ($update->message?->text === null || $update->message->isCommand()) {
+            return false;
+        }
+        return $this->matchesPattern($pattern, (string) $ctx->step());
     }
 
     private function matchesPattern(string $pattern, string $value): bool

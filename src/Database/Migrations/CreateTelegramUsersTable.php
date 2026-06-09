@@ -28,6 +28,7 @@ return new class extends Migration
             $table->unsignedBigInteger('invited_by')->nullable();
             $table->timestamp('joined_at')->useCurrent();
             $table->timestamp('last_activity_at')->useCurrent()->useCurrentOnUpdate();
+            $table->json('rate_hits')->nullable();
 
             $table->foreign('invited_by')
                 ->references('id')
