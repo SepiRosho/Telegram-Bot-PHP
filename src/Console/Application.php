@@ -6,6 +6,7 @@ use Devflow\TelegramBot\Console\Commands\MakeCallbackCommand;
 use Devflow\TelegramBot\Console\Commands\MakeFlowCommand;
 use Devflow\TelegramBot\Console\Commands\MakeHandlerCommand;
 use Devflow\TelegramBot\Console\Commands\MakeMiddlewareCommand;
+use Devflow\TelegramBot\Console\Commands\MakeTextCommand;
 use Devflow\TelegramBot\Console\Commands\NewProjectCommand;
 
 class Application
@@ -18,6 +19,7 @@ class Application
         'make:callback'    => MakeCallbackCommand::class,
         'make:middleware'  => MakeMiddlewareCommand::class,
         'make:flow'        => MakeFlowCommand::class,
+        'make:text'        => MakeTextCommand::class,
     ];
 
     public function run(array $argv): void
@@ -63,6 +65,7 @@ class Application
     \033[32mmake:callback\033[0m <ClassName>   Generate a callback handler (app/Callbacks/)
     \033[32mmake:middleware\033[0m <ClassName> Generate a middleware class  (app/Middleware/)
     \033[32mmake:flow\033[0m <ClassName>       Generate a wizard flow       (app/Flows/)
+    \033[32mmake:text\033[0m <ClassName>         Generate a localized text class (app/Texts/)
 
   \033[33mExamples:\033[0m
     vendor/bin/devflow new my-telegram-bot

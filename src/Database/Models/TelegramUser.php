@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $invited_by
  * @property \Carbon\Carbon $joined_at
  * @property \Carbon\Carbon $last_activity_at
+ * @property array|null $rate_hits
  */
 class TelegramUser extends Model
 {
@@ -50,11 +51,13 @@ class TelegramUser extends Model
         'invited_by',
         'joined_at',
         'last_activity_at',
+        'rate_hits',
     ];
 
     protected $casts = [
         'permissions' => 'array',
         'temp_data' => 'array',
+        'rate_hits' => 'array',
         'is_banned' => 'boolean',
         'is_active' => 'boolean',
         'banned_at' => 'datetime',

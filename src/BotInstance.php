@@ -92,6 +92,20 @@ class BotInstance
         return $this;
     }
 
+    public function onStep(string $step, callable|string $handler): static
+    {
+        $this->router->addRoute('step', $step, $handler);
+        return $this;
+    }
+
+    public function loadHandlers(array|string $handlers): static
+    {
+        foreach ((array) $handlers as $handlerClass) {
+            $handlerClass::register();
+        }
+        return $this;
+    }
+
     public function use(callable|string $middleware): static
     {
         $this->router->addMiddleware($middleware);

@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Devflow\TelegramBot\Support\BotText;
+
+class {{ ClassName }} extends BotText
+{
+    protected static function translations(): array
+    {
+        return [
+            'en' => 'Your text in English. Use {variable} for dynamic values.',
+            // 'fa' => 'متن فارسی',
+        ];
+    }
+}

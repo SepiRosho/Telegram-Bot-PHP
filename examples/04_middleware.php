@@ -7,6 +7,7 @@
  *  - Closure-based middleware
  *  - Class-based middleware (MiddlewareInterface)
  *  - Short-circuiting (stopping the chain)
+ *  - DB-backed rate limiting via RateLimitMiddleware
  *  - Chaining multiple middleware
  */
 
@@ -15,8 +16,9 @@ require __DIR__ . '/../vendor/autoload.php';
 use Devflow\TelegramBot\Bot;
 use Devflow\TelegramBot\Context;
 use Devflow\TelegramBot\Middleware\MiddlewareInterface;
+use Devflow\TelegramBot\Middleware\RateLimitMiddleware;
 
-Bot::init('YOUR_BOT_TOKEN');
+Bot::init('YOUR_BOT_TOKEN', ['database' => true]);
 
 // ---- Class-based middleware -------------------------------------------------
 
@@ -24,9 +26,7 @@ class BanCheckMiddleware implements MiddlewareInterface
 {
     public function handle(Context $ctx, callable $next): void
     {
-        $user = $ctx->user();
-
-        if ($user?->is_banned) {
+        if ($ctx->user()?->is_banned) {
             $ctx->reply('You are banned from using this bot.');
             return; // stops the chain — handler never runs
         }
@@ -50,10 +50,8 @@ class LogMiddleware implements MiddlewareInterface
 // ---- Closure-based middleware -----------------------------------------------
 
 $adminOnly = function (Context $ctx, callable $next): void {
-    $user = $ctx->user();
-
-    if (!$user?->isAdmin()) {
-        $ctx->reply('⛔ This command is for admins only.');
+    if (!$ctx->user()?->isAdmin()) {
+        $ctx->reply('This command is for admins only.');
         return;
     }
 
@@ -65,17 +63,20 @@ $adminOnly = function (Context $ctx, callable $next): void {
 Bot::use(LogMiddleware::class);
 Bot::use(BanCheckMiddleware::class);
 
+// DB-backed rate limiter: max 10 messages per 60 seconds per user.
+// Requires database. Silently passes through if DB is unavailable.
+Bot::use(new RateLimitMiddleware(maxHits: 10, windowSeconds: 60));
+
 // ---- Routes -----------------------------------------------------------------
 
 Bot::onCommand('start', function (Context $ctx) {
-    $ctx->reply('Welcome! You passed the ban check ✅');
+    $ctx->reply('Welcome! You passed all middleware checks.');
 });
 
-// Admin-only command — attach middleware inline by wrapping the handler
+// Admin-only command — wrap the handler with the $adminOnly closure
 Bot::onCommand('broadcast', function (Context $ctx) use ($adminOnly) {
-    // The $adminOnly middleware only applies to this handler
     $adminOnly($ctx, function (Context $ctx) {
-        $ctx->reply('📢 Broadcast feature coming soon!');
+        $ctx->reply('Broadcast feature coming soon!');
     });
 });
 

@@ -145,37 +145,28 @@ Bot::onCommand('broadcast', function (Context $ctx) {
 
 ---
 
-## Example 4: Rate limiting (no database needed)
+## Example 4: Rate limiting — built-in DB-backed version
+
+The library ships a ready-made rate limiter that uses the database to track request timestamps. It survives across requests (unlike in-memory solutions).
+
+**Requirements:** Database must be active (see [06-database.md](06-database.md)).
 
 ```php
-// app/Middleware/RateLimitMiddleware.php
+use Devflow\TelegramBot\Middleware\RateLimitMiddleware;
 
-class RateLimitMiddleware implements MiddlewareInterface
-{
-    // In-memory: resets on every request (not persistent across requests)
-    private static array $hits = [];
-    private const MAX_PER_MINUTE = 10;
-
-    public function handle(Context $ctx, callable $next): void
-    {
-        $userId = $ctx->userId();
-        $now    = time();
-
-        self::$hits[$userId] = array_filter(
-            self::$hits[$userId] ?? [],
-            fn($t) => $now - $t < 60
-        );
-
-        if (count(self::$hits[$userId]) >= self::MAX_PER_MINUTE) {
-            $ctx->reply('Too many requests. Please slow down.');
-            return;
-        }
-
-        self::$hits[$userId][] = $now;
-        $next($ctx);
-    }
-}
+// In bootstrap/app.php:
+Bot::use(new RateLimitMiddleware(
+    maxHits: 10,          // max 10 requests...
+    windowSeconds: 60,    // ...per 60-second rolling window
+    message: 'Slow down! You are sending too many messages.',
+));
 ```
+
+The `message` and `windowSeconds` are optional — defaults are 10 hits / 60 seconds / "Too many requests. Please slow down."
+
+Hit timestamps are stored in the `rate_hits` JSON column on the `telegram_users` table. Old timestamps are pruned on each request.
+
+> **Note:** `RateLimitMiddleware` silently passes through if `$ctx->user()` is null (no DB or untracked user), so it never breaks bots that have the database disabled.
 
 ---
 
