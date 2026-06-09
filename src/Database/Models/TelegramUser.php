@@ -92,7 +92,7 @@ class TelegramUser extends Model
     {
         $this->is_banned = true;
         $this->ban_reason = $reason ?: null;
-        $this->banned_at = now();
+        $this->banned_at = \Carbon\Carbon::now();
         $this->save();
     }
 
@@ -106,7 +106,7 @@ class TelegramUser extends Model
 
     public function touchActivity(): void
     {
-        $this->last_activity_at = now();
+        $this->last_activity_at = \Carbon\Carbon::now();
         $this->save();
     }
 }

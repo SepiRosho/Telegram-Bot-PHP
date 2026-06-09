@@ -31,9 +31,14 @@ class NewProjectCommand
         echo "  Next steps:\n";
         echo "  \033[33m1.\033[0m cd {$name}\n";
         echo "  \033[33m2.\033[0m composer install\n";
-        echo "  \033[33m3.\033[0m cp .env.example .env  (fill in BOT_TOKEN + DB credentials)\n";
-        echo "  \033[33m4.\033[0m Run the SQL migrations from vendor/devflow/telegram-bot/database/migrations/\n";
-        echo "  \033[33m5.\033[0m Point your Telegram webhook at: https://yourdomain.com/public/webhook.php\n";
+        echo "  \033[33m3.\033[0m Edit \033[36m.env\033[0m — replace BOT_TOKEN with your bot token from @BotFather\n";
+        echo "  \033[33m4.\033[0m Point your Telegram webhook at: https://yourdomain.com/public/webhook.php\n";
+        echo "  \033[33m5.\033[0m When adding new classes, run: composer dump-autoload\n";
+        echo "\n";
+        echo "  To enable user tracking, banning, and wizard flows:\n";
+        echo "  \033[33m6.\033[0m Import the SQL files from vendor/devflow/telegram-bot/database/migrations/\n";
+        echo "  \033[33m7.\033[0m Fill in DB_ credentials in .env\n";
+        echo "  \033[33m8.\033[0m Uncomment the DB block + AuthMiddleware in bootstrap/app.php\n";
         echo "\n";
     }
 
@@ -68,7 +73,6 @@ class NewProjectCommand
             '.gitignore'                 => $this->gitignore(),
             'bootstrap/helpers.php'      => $this->bootstrapHelpers(),
             'bootstrap/app.php'          => $this->bootstrapApp(),
-            'config/bot.php'             => $this->configBot(),
             'public/webhook.php'         => $this->publicWebhook(),
             'app/Commands/StartCommand.php'         => $this->startCommand(),
             'app/Commands/HelpCommand.php'          => $this->helpCommand(),
@@ -169,36 +173,44 @@ class NewProjectCommand
         <?php
 
         use Devflow\TelegramBot\Bot;
-        use Illuminate\Database\Capsule\Manager as Capsule;
+        use Devflow\TelegramBot\Context;
 
-        // ─── Database ──────────────────────────────────────────────────────────
-        // Remove this block entirely if you are not using the database features.
-
-        $capsule = new Capsule;
-        $capsule->addConnection([
-            'driver'    => env('DB_DRIVER', 'mysql'),
-            'host'      => env('DB_HOST', '127.0.0.1'),
-            'port'      => env('DB_PORT', '3306'),
-            'database'  => env('DB_DATABASE', 'my_bot'),
-            'username'  => env('DB_USERNAME', 'root'),
-            'password'  => env('DB_PASSWORD', ''),
-            'charset'   => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix'    => '',
-        ]);
-        $capsule->setAsGlobal();
-        $capsule->bootEloquent();
+        // ─── Database (optional) ───────────────────────────────────────────────
+        // Enables $ctx->user(), $ctx->step(), $ctx->setTemp(), banning, etc.
+        //
+        // To activate:
+        //   1. Import SQL files from vendor/devflow/telegram-bot/database/migrations/
+        //      (via phpMyAdmin, or: mysql -u root my_bot < vendor/.../telegram_users.sql)
+        //   2. Fill in DB_ credentials in .env
+        //   3. Uncomment the block below
+        //   4. Add ['database' => true] to Bot::init() below
+        //
+        // use Illuminate\Database\Capsule\Manager as Capsule;
+        //
+        // $capsule = new Capsule;
+        // $capsule->addConnection([
+        //     'driver'    => env('DB_DRIVER', 'mysql'),
+        //     'host'      => env('DB_HOST', '127.0.0.1'),
+        //     'port'      => env('DB_PORT', '3306'),
+        //     'database'  => env('DB_DATABASE', 'my_bot'),
+        //     'username'  => env('DB_USERNAME', 'root'),
+        //     'password'  => env('DB_PASSWORD', ''),
+        //     'charset'   => 'utf8mb4',
+        //     'collation' => 'utf8mb4_unicode_ci',
+        // ]);
+        // $capsule->setAsGlobal();
+        // $capsule->bootEloquent();
 
         // ─── Bot init ──────────────────────────────────────────────────────────
 
-        Bot::init(env('BOT_TOKEN'), [
-            'database' => (bool) env('BOT_DATABASE', true),
-        ]);
+        Bot::init(env('BOT_TOKEN'));
+        // With database: Bot::init(env('BOT_TOKEN'), ['database' => true]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
-        // Middleware runs before every matched handler, in registration order.
+        // AuthMiddleware checks bans and updates last_activity_at.
+        // Requires database to be active (uncomment after DB setup).
 
-        Bot::use(\App\Middleware\AuthMiddleware::class);
+        // Bot::use(\App\Middleware\AuthMiddleware::class);
 
         // ─── Commands ──────────────────────────────────────────────────────────
 
@@ -206,20 +218,14 @@ class NewProjectCommand
         Bot::onCommand('help',  \App\Commands\HelpCommand::class);
 
         // ─── Callback queries ──────────────────────────────────────────────────
-        // Use * as a wildcard in the pattern.
 
         // Bot::onCallbackQuery('confirm_*', \App\Callbacks\ConfirmCallback::class);
 
-        // ─── Text / wizard flows ───────────────────────────────────────────────
-        // Uncomment and route to your flow handler once you add one.
+        // ─── Text messages ─────────────────────────────────────────────────────
 
-        // Bot::onText(function (\Devflow\TelegramBot\Context $ctx) {
-        //     // Route to the active flow based on the user's current step
-        //     match (true) {
-        //         str_starts_with((string) $ctx->step(), 'register.') => (new \App\Flows\RegisterFlow())->handle($ctx),
-        //         default => $ctx->reply("Use /start to begin."),
-        //     };
-        // });
+        Bot::onText(function (Context $ctx) {
+            $ctx->reply($ctx->text());
+        });
         PHP;
     }
 
@@ -252,9 +258,9 @@ class NewProjectCommand
 
         require __DIR__ . '/../vendor/autoload.php';
 
-        // Load .env
+        // Load .env (safeLoad silently ignores a missing .env file)
         $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-        $dotenv->load();
+        $dotenv->safeLoad();
 
         // Bootstrap the bot (init, DB, middleware, handlers)
         require __DIR__ . '/../bootstrap/app.php';
@@ -279,7 +285,7 @@ class NewProjectCommand
         {
             public function handle(Context $ctx): void
             {
-                $name = $ctx->user()?->first_name ?? $ctx->from()?->firstName ?? 'there';
+                $name = $ctx->from()?->firstName ?? 'there';
 
                 $ctx->reply(
                     "Hello, {$name}!\n\nUse /help to see what I can do.",

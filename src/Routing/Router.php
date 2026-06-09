@@ -22,11 +22,14 @@ class Router
         $this->middlewares[] = $middleware;
     }
 
-    public function dispatch(Update $update, TelegramApi $api, array $config = []): void
+    public function dispatch(Update $update, TelegramApi $api, array $config = [], ?object $userRepository = null): void
     {
         foreach ($this->routes as $route) {
             if ($this->matches($route, $update)) {
                 $ctx = new Context($update, $api, $config);
+                if ($userRepository !== null) {
+                    $ctx->setUserRepository($userRepository);
+                }
                 $this->runWithMiddleware($ctx, $route->handler);
                 return;
             }
