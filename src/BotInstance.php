@@ -117,7 +117,13 @@ class BotInstance
         }
 
         $update = Update::fromArray($data);
-        $this->router->dispatch($update, $this->api, $this->config);
+
+        $userRepository = null;
+        if ($this->config['database'] ?? false) {
+            $userRepository = new \Devflow\TelegramBot\Database\UserRepository();
+        }
+
+        $this->router->dispatch($update, $this->api, $this->config, $userRepository);
     }
 
     // Proxy any unknown call directly to TelegramApi
