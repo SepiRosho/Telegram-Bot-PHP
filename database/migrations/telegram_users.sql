@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS `telegram_users` (
     `invited_by`        BIGINT UNSIGNED NULL,
     `joined_at`         TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `last_activity_at`  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  rate_hits           JSON NULL,
+    `rate_hits`         JSON            NULL,
 
     PRIMARY KEY (`id`),
     UNIQUE KEY `telegram_users_telegram_id_unique` (`telegram_id`),

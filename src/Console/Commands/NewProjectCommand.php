@@ -36,7 +36,8 @@ class NewProjectCommand
         echo "  \033[33m5.\033[0m When adding new classes, run: composer dump-autoload\n";
         echo "\n";
         echo "  To enable user tracking, banning, and wizard flows:\n";
-        echo "  \033[33m6.\033[0m Import the SQL files from vendor/devflow/telegram-bot/database/migrations/\n";
+        echo "  \033[33m6.\033[0m Import the SQL files from \033[36mdatabase/migrations/\033[0m into your MySQL database\n";
+        echo "     (phpMyAdmin: select your DB → Import → choose each .sql file)\n";
         echo "  \033[33m7.\033[0m Fill in DB_ credentials in .env\n";
         echo "  \033[33m8.\033[0m Uncomment the DB block + AuthMiddleware in bootstrap/app.php\n";
         echo "\n";
@@ -54,6 +55,7 @@ class NewProjectCommand
             'app/Services',
             'bootstrap',
             'config',
+            'database/migrations',
             'public',
         ];
 
@@ -83,6 +85,9 @@ class NewProjectCommand
             'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
             'app/Handlers/AdminHandlers.php'            => $this->adminHandlers(),
             'app/Texts/WelcomeText.php'                 => $this->welcomeText(),
+            'database/migrations/telegram_users.sql'    => $this->migrationTelegramUsers(),
+            'database/migrations/bot_settings.sql'      => $this->migrationBotSettings(),
+            'database/migrations/telegram_broadcasts.sql' => $this->migrationBroadcasts(),
             'app/Callbacks/.gitkeep'                    => '',
             'app/Flows/.gitkeep'                        => '',
             'app/Services/.gitkeep'                     => '',
@@ -184,8 +189,9 @@ class NewProjectCommand
         // Enables $ctx->user(), $ctx->step(), $ctx->setTemp(), banning, rate limiting.
         //
         // To activate:
-        //   1. Import SQL files from vendor/devflow/telegram-bot/database/migrations/
-        //      (via phpMyAdmin, or: mysql -u root my_bot < vendor/.../telegram_users.sql)
+        //   1. Import the SQL files from database/migrations/ into your MySQL database
+        //      phpMyAdmin: select your DB → Import → choose each .sql file
+        //      Command line: mysql -u root my_bot < database/migrations/telegram_users.sql
         //   2. Fill in DB_ credentials in .env
         //   3. Uncomment the block below
         //   4. Add ['database' => true] to Bot::init() below
@@ -483,6 +489,83 @@ class NewProjectCommand
             }
         }
         PHP;
+    }
+
+    private function migrationTelegramUsers(): string
+    {
+        return <<<'SQL'
+        CREATE TABLE IF NOT EXISTS `telegram_users` (
+            `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `telegram_id`      BIGINT UNSIGNED NOT NULL,
+            `chat_id`          BIGINT          NOT NULL,
+            `first_name`       VARCHAR(255)    NOT NULL,
+            `last_name`        VARCHAR(255)    NULL,
+            `username`         VARCHAR(255)    NULL,
+            `language_code`    VARCHAR(10)     NULL,
+            `role`             VARCHAR(50)     NOT NULL DEFAULT 'user',
+            `permissions`      JSON            NULL,
+            `is_banned`        TINYINT(1)      NOT NULL DEFAULT 0,
+            `ban_reason`       TEXT            NULL,
+            `banned_at`        TIMESTAMP       NULL,
+            `is_active`        TINYINT(1)      NOT NULL DEFAULT 1,
+            `step`             VARCHAR(255)    NULL,
+            `temp_data`        JSON            NULL,
+            `rate_hits`        JSON            NULL,
+            `referral_code`    VARCHAR(32)     NULL,
+            `invited_by`       BIGINT UNSIGNED NULL,
+            `joined_at`        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `last_activity_at` TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `telegram_users_telegram_id_unique` (`telegram_id`),
+            UNIQUE KEY `telegram_users_referral_code_unique` (`referral_code`),
+            KEY `telegram_users_invited_by_foreign` (`invited_by`),
+            CONSTRAINT `telegram_users_invited_by_foreign`
+                FOREIGN KEY (`invited_by`) REFERENCES `telegram_users` (`id`)
+                ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        SQL;
+    }
+
+    private function migrationBotSettings(): string
+    {
+        return <<<'SQL'
+        CREATE TABLE IF NOT EXISTS `bot_settings` (
+            `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `key`        VARCHAR(255) NOT NULL,
+            `value`      TEXT         NULL,
+            `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `bot_settings_key_unique` (`key`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        SQL;
+    }
+
+    private function migrationBroadcasts(): string
+    {
+        return <<<'SQL'
+        CREATE TABLE IF NOT EXISTS `telegram_broadcasts` (
+            `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `message`          TEXT            NOT NULL,
+            `type`             VARCHAR(50)     NOT NULL DEFAULT 'text',
+            `options`          JSON            NULL,
+            `status`           ENUM('pending','running','completed','failed') NOT NULL DEFAULT 'pending',
+            `total_recipients` INT UNSIGNED    NOT NULL DEFAULT 0,
+            `sent_count`       INT UNSIGNED    NOT NULL DEFAULT 0,
+            `failed_count`     INT UNSIGNED    NOT NULL DEFAULT 0,
+            `scheduled_at`     TIMESTAMP       NULL,
+            `started_at`       TIMESTAMP       NULL,
+            `completed_at`     TIMESTAMP       NULL,
+            `created_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+            PRIMARY KEY (`id`),
+            KEY `telegram_broadcasts_status_index` (`status`),
+            KEY `telegram_broadcasts_scheduled_at_index` (`scheduled_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        SQL;
     }
 
     private function info(string $msg): void
