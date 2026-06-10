@@ -270,8 +270,15 @@ class NewProjectCommand
         // Bootstrap the bot (init, DB, middleware, handlers)
         require __DIR__ . '/../bootstrap/app.php';
 
-        // Dispatch the incoming Telegram update
-        \Devflow\TelegramBot\Bot::run();
+        // Always return 200 to Telegram so it does not retry failed updates.
+        // Errors are logged to PHP's error log for debugging.
+        http_response_code(200);
+
+        try {
+            \Devflow\TelegramBot\Bot::run();
+        } catch (\Throwable $e) {
+            error_log('[devflow-bot] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        }
         PHP;
     }
 
@@ -369,10 +376,15 @@ class NewProjectCommand
         # Disable directory listing
         Options -Indexes
 
-        # Protect sensitive files
+        # Protect sensitive files (works on Apache 2.2 and 2.4)
         <FilesMatch "\.(env|json|lock|gitignore|md|stub)$">
-            Order Deny,Allow
-            Deny from all
+            <IfModule mod_authz_core.c>
+                Require all denied
+            </IfModule>
+            <IfModule !mod_authz_core.c>
+                Order Deny,Allow
+                Deny from all
+            </IfModule>
         </FilesMatch>
 
         <IfModule mod_rewrite.c>
