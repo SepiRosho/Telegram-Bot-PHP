@@ -11,7 +11,7 @@ use Devflow\TelegramBot\Console\Commands\NewProjectCommand;
 
 class Application
 {
-    private const VERSION = '1.2.2';
+    private const VERSION = '1.3.0';
 
     private array $commands = [
         'new'              => NewProjectCommand::class,

@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Carbon\Carbon $joined_at
  * @property \Carbon\Carbon $last_activity_at
  * @property array|null $rate_hits
+ * @property string $current_panel
  */
 class TelegramUser extends Model
 {
@@ -52,6 +53,7 @@ class TelegramUser extends Model
         'joined_at',
         'last_activity_at',
         'rate_hits',
+        'current_panel',
     ];
 
     protected $casts = [
