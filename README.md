@@ -538,6 +538,7 @@ BotSetting::forget('welcome_message');
 | `examples/05_laravel.php` | Full Laravel integration walkthrough |
 | `examples/06_handler_groups.php` | Splitting handlers across files with `loadHandlers()` |
 | `examples/07_texts_and_input.php` | Localized text classes and input validation |
+| `examples/08_keyboards.php` | `Keyboard::inline()`, `Keyboard::reply()`, `Keyboard::button()`, `Keyboard::url()` |
 
 ---
 
@@ -555,6 +556,7 @@ Step-by-step documentation in [`docs/`](docs/README.md):
 - [08 — Local development with ngrok](docs/08-local-dev.md)
 - [09 — Localized text classes](docs/09-texts.md)
 - [10 — Handler groups](docs/10-handler-groups.md)
+- [11 — Keyboards](docs/11-keyboards.md)
 
 ---
 

@@ -284,12 +284,20 @@ class NewProjectCommand
         require __DIR__ . '/../bootstrap/app.php';
 
         // Always return 200 to Telegram so it does not retry failed updates.
-        // Errors are logged to PHP's error log for debugging.
         http_response_code(200);
 
         try {
             \Devflow\TelegramBot\Bot::run();
         } catch (\Throwable $e) {
+            // Write the full stack trace to the daily log file.
+            saveLog($e->getMessage() . "\n" . $e->getTraceAsString(), 'ERROR');
+
+            // Send a short alert to the admin (full trace would exceed Telegram's message limit).
+            botLog(
+                '🔴 Bot crash: ' . $e->getMessage() . "\n" .
+                '📄 ' . basename($e->getFile()) . ':' . $e->getLine()
+            );
+
             error_log('[devflow-bot] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
         }
         PHP;
@@ -411,7 +419,10 @@ class NewProjectCommand
                     $user = $ctx->user();
 
                     if ($user === null) {
-                        $role = ((int) env('ADMIN_CHAT_ID') === $ctx->userId()) ? 'superadmin' : 'user';
+                        $adminId = env('ADMIN_CHAT_ID');
+                        $role    = ($adminId && (string) $ctx->userId() === trim((string) $adminId))
+                            ? 'superadmin'
+                            : 'user';
 
                         $user = TelegramUser::create([
                             'telegram_id'   => $ctx->userId(),
@@ -429,9 +440,8 @@ class NewProjectCommand
                     $name = $ctx->from()?->firstName ?? 'there';
 
                     $ctx->reply("👋 Hello, {$name}! Welcome to the bot.", [
-                        'reply_markup' => json_encode([
-                            'keyboard'        => [[['text' => '📋 My Account']]],
-                            'resize_keyboard' => true,
+                        'reply_markup' => \Devflow\TelegramBot\Support\Keyboard::reply([
+                            ['📋 My Account'],
                         ]),
                     ]);
                 });
@@ -441,9 +451,8 @@ class NewProjectCommand
                     $ctx->user()?->update(['current_panel' => 'user']);
 
                     $ctx->reply('👤 User panel.', [
-                        'reply_markup' => json_encode([
-                            'keyboard'        => [[['text' => '📋 My Account']]],
-                            'resize_keyboard' => true,
+                        'reply_markup' => \Devflow\TelegramBot\Support\Keyboard::reply([
+                            ['📋 My Account'],
                         ]),
                     ]);
                 });
@@ -484,10 +493,8 @@ class NewProjectCommand
                     $name = $ctx->from()?->firstName ?? 'Admin';
 
                     $ctx->reply("🔧 Admin panel, {$name}.", [
-                        'reply_markup' => json_encode([
-                            'inline_keyboard' => [
-                                [['text' => '📊 Bot Status', 'callback_data' => 'bot_status']],
-                            ],
+                        'reply_markup' => \Devflow\TelegramBot\Support\Keyboard::inline([
+                            [\Devflow\TelegramBot\Support\Keyboard::button('📊 Bot Status', 'bot_status')],
                         ]),
                     ]);
                 });
