@@ -14,5 +14,6 @@ Step-by-step guides for building a bot with this library.
 | [08 — Local Dev](08-local-dev.md) | ngrok and Cloudflare Tunnel for testing on localhost |
 | [09 — Localized Texts](09-texts.md) | `BotText` classes for multi-language messages with `{variable}` placeholders |
 | [10 — Handler Groups](10-handler-groups.md) | Split large bots across multiple handler files |
+| [11 — Keyboards](11-keyboards.md) | `Keyboard::inline()`, `Keyboard::reply()`, `Keyboard::button()`, `Keyboard::url()`, `Keyboard::remove()` |
 
 Start with [01 — Installation](01-installation.md) if this is your first time.
