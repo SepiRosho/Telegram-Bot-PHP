@@ -251,4 +251,20 @@ class Bot
     {
         return static::getInstance()->api()->deleteMyCommands($options);
     }
+
+    // -------------------------------------------------------------------------
+    // Logging helpers — delegates to Log::
+    // -------------------------------------------------------------------------
+
+    /** Send $data to the configured admin chat ID via Telegram. Falls back to saveLog() if unavailable. */
+    public static function log(mixed $data): void
+    {
+        \Devflow\TelegramBot\Support\Log::send($data);
+    }
+
+    /** Write $data to the daily log file. Pass $_depth=2 if wrapping in another function. */
+    public static function saveLog(mixed $data, string $level = 'INFO', int $_depth = 1): void
+    {
+        \Devflow\TelegramBot\Support\Log::save($data, $level, $_depth + 1);
+    }
 }

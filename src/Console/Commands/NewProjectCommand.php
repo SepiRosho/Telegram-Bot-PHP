@@ -31,15 +31,15 @@ class NewProjectCommand
         echo "  Next steps:\n";
         echo "  \033[33m1.\033[0m cd {$name}\n";
         echo "  \033[33m2.\033[0m composer install\n";
-        echo "  \033[33m3.\033[0m Edit \033[36m.env\033[0m — replace BOT_TOKEN with your bot token from @BotFather\n";
+        echo "  \033[33m3.\033[0m Edit \033[36m.env\033[0m — set BOT_TOKEN and ADMIN_CHAT_ID (your Telegram numeric user ID)\n";
         echo "  \033[33m4.\033[0m Point your Telegram webhook at: https://yourdomain.com/public/webhook.php\n";
         echo "  \033[33m5.\033[0m When adding new classes, run: composer dump-autoload\n";
         echo "\n";
-        echo "  To enable user tracking, banning, and wizard flows:\n";
-        echo "  \033[33m6.\033[0m Import the SQL files from \033[36mdatabase/migrations/\033[0m into your MySQL database\n";
+        echo "  Database setup (required — used for auto-registration and admin panel):\n";
+        echo "  \033[33m6.\033[0m Import each SQL file from \033[36mdatabase/migrations/\033[0m into your MySQL/MariaDB database\n";
         echo "     (phpMyAdmin: select your DB → Import → choose each .sql file)\n";
-        echo "  \033[33m7.\033[0m Fill in DB_ credentials in .env\n";
-        echo "  \033[33m8.\033[0m Uncomment the DB block + AuthMiddleware in bootstrap/app.php\n";
+        echo "     CLI: mysql -u root my_bot < database/migrations/telegram_users.sql\n";
+        echo "  \033[33m7.\033[0m Fill in DB_ credentials in .env  (\033[36mDB_DRIVER=mariadb\033[0m for MariaDB)\n";
         echo "\n";
     }
 
@@ -57,6 +57,7 @@ class NewProjectCommand
             'config',
             'database/migrations',
             'public',
+            'logs',
         ];
 
         foreach ($dirs as $dir) {
@@ -79,7 +80,6 @@ class NewProjectCommand
             'bootstrap/helpers.php'      => $this->bootstrapHelpers(),
             'bootstrap/app.php'          => $this->bootstrapApp(),
             'public/webhook.php'         => $this->publicWebhook(),
-            'app/Commands/StartCommand.php'             => $this->startCommand(),
             'app/Commands/HelpCommand.php'              => $this->helpCommand(),
             'app/Middleware/AuthMiddleware.php'         => $this->authMiddleware(),
             'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
@@ -88,6 +88,7 @@ class NewProjectCommand
             'database/migrations/telegram_users.sql'    => $this->migrationTelegramUsers(),
             'database/migrations/bot_settings.sql'      => $this->migrationBotSettings(),
             'database/migrations/telegram_broadcasts.sql' => $this->migrationBroadcasts(),
+            'logs/.gitignore'                           => "*.log\n",
             'app/Callbacks/.gitkeep'                    => '',
             'app/Flows/.gitkeep'                        => '',
             'app/Services/.gitkeep'                     => '',
@@ -135,7 +136,7 @@ class NewProjectCommand
     {
         return <<<ENV
         BOT_TOKEN=your_bot_token_here
-        BOT_DATABASE=true
+        ADMIN_CHAT_ID=
 
         DB_DRIVER=mysql
         DB_HOST=127.0.0.1
@@ -175,6 +176,20 @@ class NewProjectCommand
                 return ($value !== false && $value !== null && $value !== '') ? $value : $default;
             }
         }
+
+        if (!function_exists('saveLog')) {
+            function saveLog(mixed $data, string $level = 'INFO'): void
+            {
+                \Devflow\TelegramBot\Support\Log::save($data, $level, 2);
+            }
+        }
+
+        if (!function_exists('botLog')) {
+            function botLog(mixed $data): void
+            {
+                \Devflow\TelegramBot\Support\Log::send($data);
+            }
+        }
         PHP;
     }
 
@@ -184,52 +199,50 @@ class NewProjectCommand
         <?php
 
         use Devflow\TelegramBot\Bot;
+        use Devflow\TelegramBot\Support\Log;
+        use Illuminate\Database\Capsule\Manager as Capsule;
 
-        // ─── Database (optional) ───────────────────────────────────────────────
-        // Enables $ctx->user(), $ctx->step(), $ctx->setTemp(), banning, rate limiting.
-        //
-        // To activate:
-        //   1. Import the SQL files from database/migrations/ into your MySQL database
-        //      phpMyAdmin: select your DB → Import → choose each .sql file
-        //      Command line: mysql -u root my_bot < database/migrations/telegram_users.sql
+        // ─── Logging ───────────────────────────────────────────────────────────
+        // saveLog() / botLog() helpers are available after this.
+        // botLog() sends to ADMIN_CHAT_ID; saveLog() writes to logs/YYYY-MM-DD.log.
+        Log::setPath(__DIR__ . '/../logs');
+        Log::setAdminChatId((int) env('ADMIN_CHAT_ID'));
+
+        // ─── Database ──────────────────────────────────────────────────────────
+        // Required for auto-registration, $ctx->user(), banning, rate limiting.
+        // Setup:
+        //   1. Import each SQL file from database/migrations/ into MySQL/MariaDB
+        //      phpMyAdmin: select DB → Import → choose .sql file
+        //      CLI: mysql -u root my_bot < database/migrations/telegram_users.sql
         //   2. Fill in DB_ credentials in .env
-        //   3. Uncomment the block below
-        //   4. Add ['database' => true] to Bot::init() below
-        //
-        // use Illuminate\Database\Capsule\Manager as Capsule;
-        //
-        // $capsule = new Capsule;
-        // $capsule->addConnection([
-        //     'driver'    => env('DB_DRIVER', 'mysql'),
-        //     'host'      => env('DB_HOST', '127.0.0.1'),
-        //     'port'      => env('DB_PORT', '3306'),
-        //     'database'  => env('DB_DATABASE', 'my_bot'),
-        //     'username'  => env('DB_USERNAME', 'root'),
-        //     'password'  => env('DB_PASSWORD', ''),
-        //     'charset'   => 'utf8mb4',
-        //     'collation' => 'utf8mb4_unicode_ci',
-        // ]);
-        // $capsule->setAsGlobal();
-        // $capsule->bootEloquent();
+        //   MariaDB: set DB_DRIVER=mariadb in .env
+        $capsule = new Capsule;
+        $capsule->addConnection([
+            'driver'    => env('DB_DRIVER', 'mysql'),
+            'host'      => env('DB_HOST', '127.0.0.1'),
+            'port'      => env('DB_PORT', '3306'),
+            'database'  => env('DB_DATABASE', 'my_bot'),
+            'username'  => env('DB_USERNAME', 'root'),
+            'password'  => env('DB_PASSWORD', ''),
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+        ]);
+        $capsule->setAsGlobal();
+        $capsule->bootEloquent();
 
         // ─── Bot init ──────────────────────────────────────────────────────────
-
-        Bot::init(env('BOT_TOKEN'));
-        // With database: Bot::init(env('BOT_TOKEN'), ['database' => true]);
+        Bot::init(env('BOT_TOKEN'), ['database' => true]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
         // AuthMiddleware checks bans and updates last_activity_at.
-        // Requires database to be active (uncomment after DB setup).
-
-        // Bot::use(\App\Middleware\AuthMiddleware::class);
+        Bot::use(\App\Middleware\AuthMiddleware::class);
 
         // ─── Handlers ──────────────────────────────────────────────────────────
         // Each handler group class has a static register() method.
-        // Split complex bots by adding more groups to this array.
-
+        // Add more groups here as your bot grows.
         Bot::loadHandlers([
             \App\Handlers\UserHandlers::class,
-            // \App\Handlers\AdminHandlers::class,
+            \App\Handlers\AdminHandlers::class,
         ]);
         PHP;
     }
@@ -278,31 +291,6 @@ class NewProjectCommand
             \Devflow\TelegramBot\Bot::run();
         } catch (\Throwable $e) {
             error_log('[devflow-bot] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
-        }
-        PHP;
-    }
-
-    private function startCommand(): string
-    {
-        return <<<'PHP'
-        <?php
-
-        namespace App\Commands;
-
-        use Devflow\TelegramBot\Bot;
-        use Devflow\TelegramBot\Context;
-        use Devflow\TelegramBot\Handlers\HandlerInterface;
-
-        class StartCommand implements HandlerInterface
-        {
-            public function handle(Context $ctx): void
-            {
-                $name = $ctx->from()?->firstName ?? 'there';
-
-                $ctx->reply(
-                    "Hello, {$name}!\n\nUse /help to see what I can do.",
-                );
-            }
         }
         PHP;
     }
@@ -412,23 +400,59 @@ class NewProjectCommand
 
         use Devflow\TelegramBot\Bot;
         use Devflow\TelegramBot\Context;
+        use Devflow\TelegramBot\Database\Models\TelegramUser;
 
         class UserHandlers
         {
             public static function register(): void
             {
-                Bot::onCommand('start', \App\Commands\StartCommand::class);
-                Bot::onCommand('help',  \App\Commands\HelpCommand::class);
+                // ─── /start — Auto-registration ──────────────────────────────────
+                Bot::onCommand('start', function (Context $ctx) {
+                    $user = $ctx->user();
 
-                // Example: handle a specific wizard step
-                // Bot::onStep('register.ask_name', function (Context $ctx) {
-                //     $ctx->setTemp('name', $ctx->text());
-                //     $ctx->setStep('register.ask_age');
-                //     $ctx->reply('How old are you?');
-                // });
+                    if ($user === null) {
+                        $role = ((int) env('ADMIN_CHAT_ID') === $ctx->userId()) ? 'superadmin' : 'user';
 
+                        $user = TelegramUser::create([
+                            'telegram_id'   => $ctx->userId(),
+                            'chat_id'       => $ctx->chatId(),
+                            'first_name'    => $ctx->from()?->firstName ?? '',
+                            'last_name'     => $ctx->from()?->lastName,
+                            'username'      => $ctx->from()?->username,
+                            'language_code' => $ctx->from()?->languageCode,
+                            'role'          => $role,
+                            'joined_at'     => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+
+                    $user->update(['current_panel' => 'user']);
+                    $name = $ctx->from()?->firstName ?? 'there';
+
+                    $ctx->reply("👋 Hello, {$name}! Welcome to the bot.", [
+                        'reply_markup' => json_encode([
+                            'keyboard'        => [[['text' => '📋 My Account']]],
+                            'resize_keyboard' => true,
+                        ]),
+                    ]);
+                });
+
+                // ─── /user — Switch to user panel ────────────────────────────────
+                Bot::onCommand('user', function (Context $ctx) {
+                    $ctx->user()?->update(['current_panel' => 'user']);
+
+                    $ctx->reply('👤 User panel.', [
+                        'reply_markup' => json_encode([
+                            'keyboard'        => [[['text' => '📋 My Account']]],
+                            'resize_keyboard' => true,
+                        ]),
+                    ]);
+                });
+
+                Bot::onCommand('help', \App\Commands\HelpCommand::class);
+
+                // ─── Fallback ─────────────────────────────────────────────────────
                 Bot::onText(function (Context $ctx) {
-                    $ctx->reply($ctx->text());
+                    $ctx->reply('You said: ' . $ctx->text());
                 });
             }
         }
@@ -444,37 +468,58 @@ class NewProjectCommand
 
         use Devflow\TelegramBot\Bot;
         use Devflow\TelegramBot\Context;
+        use Devflow\TelegramBot\Database\Models\TelegramUser;
 
         class AdminHandlers
         {
             public static function register(): void
             {
-                Bot::onCommand('stats', function (Context $ctx) {
+                // ─── /admin — Switch to admin panel ──────────────────────────────
+                Bot::onCommand('admin', function (Context $ctx) {
                     if (!$ctx->user()?->isAdmin()) {
                         return;
                     }
 
-                    $ctx->reply('Bot stats: everything is running.');
+                    $ctx->user()->update(['current_panel' => 'admin']);
+                    $name = $ctx->from()?->firstName ?? 'Admin';
+
+                    $ctx->reply("🔧 Admin panel, {$name}.", [
+                        'reply_markup' => json_encode([
+                            'inline_keyboard' => [
+                                [['text' => '📊 Bot Status', 'callback_data' => 'bot_status']],
+                            ],
+                        ]),
+                    ]);
                 });
 
-                Bot::onCommand('ban', function (Context $ctx) {
+                // ─── Bot Status ───────────────────────────────────────────────────
+                Bot::onCallbackQuery('bot_status', function (Context $ctx) {
                     if (!$ctx->user()?->isAdmin()) {
+                        $ctx->answerCallback('Access denied.', true);
                         return;
                     }
 
-                    $args   = $ctx->message()->commandArgs();
-                    $userId = (int) ($args[0] ?? 0);
+                    $total  = TelegramUser::count();
+                    $today  = TelegramUser::whereDate('last_activity_at', date('Y-m-d'))->count();
+                    $banned = TelegramUser::where('is_banned', true)->count();
 
-                    if (!$userId) {
-                        $ctx->reply('Usage: /ban <user_id>');
-                        return;
+                    try {
+                        $me       = Bot::getMe();
+                        $username = '@' . ($me->username ?? 'unknown');
+                    } catch (\Throwable) {
+                        $username = 'unavailable';
                     }
 
-                    \Devflow\TelegramBot\Database\Models\TelegramUser::where('telegram_id', $userId)
-                        ->first()
-                        ?->ban('Banned by admin');
-
-                    $ctx->reply("User {$userId} banned.");
+                    $ctx->answerCallback();
+                    $ctx->reply(
+                        "📊 *Bot Status*\n\n" .
+                        "🤖 Bot: {$username}\n" .
+                        "📦 Library: devflow/telegram-bot v1.3.0\n\n" .
+                        "👥 Total users: {$total}\n" .
+                        "✅ Active today: {$today}\n" .
+                        "🚫 Banned: {$banned}",
+                        ['parse_mode' => 'Markdown']
+                    );
                 });
             }
         }
@@ -523,6 +568,7 @@ class NewProjectCommand
             `step`             VARCHAR(255)    NULL,
             `temp_data`        JSON            NULL,
             `rate_hits`        JSON            NULL,
+            `current_panel`    VARCHAR(20)     NOT NULL DEFAULT 'user',
             `referral_code`    VARCHAR(32)     NULL,
             `invited_by`       BIGINT UNSIGNED NULL,
             `joined_at`        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
