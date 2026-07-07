@@ -27,8 +27,8 @@ class PollCommand
         require $bootstrap;
 
         $this->line('');
-        $this->line('  \033[32mdevflow poll\033[0m — long-polling mode');
-        $this->line('  \033[33mNote:\033[0m delete your webhook before polling: vendor/bin/devflow webhook:delete');
+        $this->line("  \033[32mdevflow poll\033[0m — long-polling mode");
+        $this->line("  \033[33mNote:\033[0m delete your webhook before polling: vendor/bin/devflow webhook:delete");
         $this->line('  Press Ctrl+C to stop.');
         $this->line('');
 
