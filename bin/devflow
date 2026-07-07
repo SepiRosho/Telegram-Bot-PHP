@@ -1,18 +1,43 @@
 #!/usr/bin/env php
 <?php
 
-// Support both local dev (vendor/bin) and installed-as-dependency layouts
-$autoload = __DIR__ . '/../../../autoload.php';
-if (!file_exists($autoload)) {
-    $autoload = __DIR__ . '/../vendor/autoload.php';
+$command = $argv[1] ?? null;
+
+// Prefer the current directory's own installed dependencies over the vendor
+// tree this binary happens to live in. This matters when devflow is installed
+// globally (composer global require) but run inside a scaffolded project:
+// runtime commands (poll, broadcast:run) need that project's own dependency
+// versions (e.g. vlucas/phpdotenv) — a global install won't have them, since
+// illuminate/support only *suggests* vlucas/phpdotenv rather than requiring
+// it, so relying on the global vendor surfaces as a confusing crash deep
+// inside illuminate/support's Env class instead of a clear message here.
+$localAutoload = getcwd() . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+if (file_exists($localAutoload)) {
+    require_once $localAutoload;
 }
 
-if (!file_exists($autoload)) {
-    fwrite(STDERR, "Cannot find autoload.php. Run `composer install` first.\n");
-    exit(1);
-}
+if (!class_exists(Devflow\TelegramBot\Console\Application::class)) {
+    $projectMarker = getcwd() . DIRECTORY_SEPARATOR . 'composer.json';
+    $skipsVendorCheck = in_array($command, [null, 'new', 'help', '--help', '-h', 'version', '--version', '-V'], true);
 
-require_once $autoload;
+    if (!$skipsVendorCheck && file_exists($projectMarker)) {
+        fwrite(STDERR, "No vendor/ found in this project. Run `composer install` here first, then use `vendor\\bin\\devflow {$command}`.\n");
+        exit(1);
+    }
+
+    // Support both local dev (vendor/bin) and installed-as-dependency layouts
+    $autoload = __DIR__ . '/../../../autoload.php';
+    if (!file_exists($autoload)) {
+        $autoload = __DIR__ . '/../vendor/autoload.php';
+    }
+
+    if (!file_exists($autoload)) {
+        fwrite(STDERR, "Cannot find autoload.php. Run `composer install` first.\n");
+        exit(1);
+    }
+
+    require_once $autoload;
+}
 
 use Devflow\TelegramBot\Console\Application;
 
