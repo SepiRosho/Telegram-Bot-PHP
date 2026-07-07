@@ -53,16 +53,26 @@ class Router
     private function matches(Route $route, Update $update): bool
     {
         return match ($route->type) {
-            'command' => $this->matchesCommand($route->pattern, $update),
-            'text' => $update->message?->text !== null && !$update->message->isCommand(),
-            'message' => $update->message !== null,
-            'callback_query' => $update->callbackQuery !== null
+            'command'             => $this->matchesCommand($route->pattern, $update),
+            'text'                => $update->message?->text !== null && !$update->message->isCommand(),
+            'message'             => $update->message !== null,
+            'edited_message'      => $update->editedMessage !== null,
+            'channel_post'        => $update->channelPost !== null,
+            'callback_query'      => $update->callbackQuery !== null
                 && $this->matchesPattern($route->pattern, $update->callbackQuery->data ?? ''),
-            'photo' => $update->message?->photo !== null,
-            'document' => $update->message?->document !== null,
-            'inline_query' => $update->inlineQuery !== null,
-            'update' => true,
-            default => false,
+            'photo'               => $update->message?->photo !== null,
+            'document'            => $update->message?->document !== null,
+            'inline_query'        => $update->inlineQuery !== null,
+            'chosen_inline_result' => $update->chosenInlineResult !== null,
+            'poll'                => $update->poll !== null,
+            'poll_answer'         => $update->pollAnswer !== null,
+            'my_chat_member'      => $update->myChatMember !== null,
+            'chat_member'         => $update->chatMember !== null,
+            'chat_join_request'   => $update->chatJoinRequest !== null,
+            'shipping_query'      => $update->shippingQuery !== null,
+            'pre_checkout_query'  => $update->preCheckoutQuery !== null,
+            'update'              => true,
+            default               => false,
         };
     }
 

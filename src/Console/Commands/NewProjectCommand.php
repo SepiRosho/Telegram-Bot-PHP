@@ -41,6 +41,11 @@ class NewProjectCommand
         echo "     CLI: mysql -u root my_bot < database/migrations/telegram_users.sql\n";
         echo "  \033[33m7.\033[0m Fill in DB_ credentials in .env  (\033[36mDB_DRIVER=mariadb\033[0m for MariaDB)\n";
         echo "\n";
+        echo "  Optional:\n";
+        echo "  \033[33m•\033[0m Local dev (no webhook needed): \033[36mvendor/bin/devflow poll\033[0m\n";
+        echo "  \033[33m•\033[0m Send broadcasts:               \033[36mvendor/bin/devflow broadcast:run\033[0m\n";
+        echo "  \033[33m•\033[0m Countries blocking Telegram:   set \033[36mPROXY_URL=\033[0m in .env\n";
+        echo "\n";
     }
 
     private function makeDirectories(string $root): void
@@ -138,6 +143,18 @@ class NewProjectCommand
         BOT_TOKEN=your_bot_token_here
         ADMIN_CHAT_ID=
 
+        # Optional: set a secret token when registering your webhook (recommended for production).
+        # Pass this same value to setWebhook as the secret_token option.
+        WEBHOOK_SECRET=
+
+        # Optional: HTTP or SOCKS5 proxy URL (e.g. http://user:pass@host:port or socks5://host:port).
+        # Useful in countries where Telegram's API is blocked.
+        PROXY_URL=
+
+        # Broadcast rate limit — messages per second sent during broadcast:run.
+        # Telegram allows up to 30 msg/s; 25 leaves headroom for normal user responses.
+        BROADCAST_RATE=25
+
         DB_DRIVER=mysql
         DB_HOST=127.0.0.1
         DB_PORT=3306
@@ -231,7 +248,13 @@ class NewProjectCommand
         $capsule->bootEloquent();
 
         // ─── Bot init ──────────────────────────────────────────────────────────
-        Bot::init(env('BOT_TOKEN'), ['database' => true]);
+        // webhook_secret: validates the X-Telegram-Bot-Api-Secret-Token header (set WEBHOOK_SECRET in .env).
+        // proxy:          HTTP or SOCKS5 proxy URL for countries where Telegram is blocked (set PROXY_URL in .env).
+        Bot::init(env('BOT_TOKEN'), [
+            'database'       => true,
+            'webhook_secret' => env('WEBHOOK_SECRET') ?: null,
+            'proxy'          => env('PROXY_URL') ?: null,
+        ]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
         // AuthMiddleware checks bans and updates last_activity_at.

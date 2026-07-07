@@ -95,6 +95,55 @@ class Context
         return $this->api->sendDocument($this->chatId(), $document, $options);
     }
 
+    public function replyWithVideo(string $video, array $options = []): Message
+    {
+        return $this->api->sendVideo($this->chatId(), $video, $options);
+    }
+
+    public function replyWithAudio(string $audio, array $options = []): Message
+    {
+        return $this->api->sendAudio($this->chatId(), $audio, $options);
+    }
+
+    public function replyWithVoice(string $voice, array $options = []): Message
+    {
+        return $this->api->sendVoice($this->chatId(), $voice, $options);
+    }
+
+    public function replyWithSticker(string $sticker, array $options = []): Message
+    {
+        return $this->api->sendSticker($this->chatId(), $sticker, $options);
+    }
+
+    public function replyWithLocation(float $latitude, float $longitude, array $options = []): Message
+    {
+        return $this->api->sendLocation($this->chatId(), $latitude, $longitude, $options);
+    }
+
+    public function typing(): bool
+    {
+        return $this->api->sendChatAction($this->chatId(), 'typing');
+    }
+
+    public function editReply(string $text, array $options = []): Message
+    {
+        $messageId = $this->update->callbackQuery?->message?->messageId;
+        if ($messageId === null) {
+            return $this->reply($text, $options);
+        }
+        return $this->api->editMessageText($this->chatId(), $messageId, $text, $options);
+    }
+
+    public function deleteCurrentMessage(): bool
+    {
+        $messageId = $this->update->callbackQuery?->message?->messageId
+            ?? $this->message()?->messageId;
+        if ($messageId === null) {
+            return false;
+        }
+        return $this->api->deleteMessage($this->chatId(), $messageId);
+    }
+
     public function answerCallback(string $text = '', bool $showAlert = false): bool
     {
         $id = $this->update->callbackQuery?->id;

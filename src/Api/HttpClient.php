@@ -10,12 +10,18 @@ class HttpClient implements HttpClientInterface
 {
     private Client $client;
 
-    public function __construct(string $token)
+    public function __construct(string $token, array $options = [])
     {
-        $this->client = new Client([
+        $clientOptions = [
             'base_uri' => "https://api.telegram.org/bot{$token}/",
             'timeout' => 30,
-        ]);
+        ];
+
+        if (!empty($options['proxy'])) {
+            $clientOptions['proxy'] = $options['proxy'];
+        }
+
+        $this->client = new Client($clientOptions);
     }
 
     public function post(string $method, array $params = []): mixed

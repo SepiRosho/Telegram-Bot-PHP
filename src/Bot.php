@@ -73,6 +73,56 @@ class Bot
         return static::getInstance()->onInlineQuery($handler);
     }
 
+    public static function onChosenInlineResult(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onChosenInlineResult($handler);
+    }
+
+    public static function onEditedMessage(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onEditedMessage($handler);
+    }
+
+    public static function onChannelPost(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onChannelPost($handler);
+    }
+
+    public static function onPoll(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onPoll($handler);
+    }
+
+    public static function onPollAnswer(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onPollAnswer($handler);
+    }
+
+    public static function onMyChatMember(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onMyChatMember($handler);
+    }
+
+    public static function onChatMember(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onChatMember($handler);
+    }
+
+    public static function onChatJoinRequest(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onChatJoinRequest($handler);
+    }
+
+    public static function onShippingQuery(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onShippingQuery($handler);
+    }
+
+    public static function onPreCheckoutQuery(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onPreCheckoutQuery($handler);
+    }
+
     public static function onUpdate(callable|string $handler): BotInstance
     {
         return static::getInstance()->onUpdate($handler);
@@ -250,6 +300,143 @@ class Bot
     public static function deleteMyCommands(array $options = []): bool
     {
         return static::getInstance()->api()->deleteMyCommands($options);
+    }
+
+    // -------------------------------------------------------------------------
+    // Polling
+    // -------------------------------------------------------------------------
+
+    public static function getUpdates(array $options = []): array
+    {
+        return static::getInstance()->api()->getUpdates($options);
+    }
+
+    public static function poll(?callable $onError = null): never
+    {
+        static::getInstance()->runPolling($onError);
+    }
+
+    // -------------------------------------------------------------------------
+    // Additional media
+    // -------------------------------------------------------------------------
+
+    public static function sendVideoNote(int|string $chatId, string $videoNote, array $options = []): Message
+    {
+        return static::getInstance()->api()->sendVideoNote($chatId, $videoNote, $options);
+    }
+
+    public static function stopPoll(int|string $chatId, int $messageId, array $options = []): array
+    {
+        return static::getInstance()->api()->stopPoll($chatId, $messageId, $options);
+    }
+
+    // -------------------------------------------------------------------------
+    // Chat administration — extended
+    // -------------------------------------------------------------------------
+
+    public static function setChatTitle(int|string $chatId, string $title): bool
+    {
+        return static::getInstance()->api()->setChatTitle($chatId, $title);
+    }
+
+    public static function setChatDescription(int|string $chatId, string $description = ''): bool
+    {
+        return static::getInstance()->api()->setChatDescription($chatId, $description);
+    }
+
+    public static function getChatAdministrators(int|string $chatId): array
+    {
+        return static::getInstance()->api()->getChatAdministrators($chatId);
+    }
+
+    public static function setChatPermissions(int|string $chatId, array $permissions, array $options = []): bool
+    {
+        return static::getInstance()->api()->setChatPermissions($chatId, $permissions, $options);
+    }
+
+    public static function revokeChatInviteLink(int|string $chatId, string $inviteLink): array
+    {
+        return static::getInstance()->api()->revokeChatInviteLink($chatId, $inviteLink);
+    }
+
+    public static function approveChatJoinRequest(int|string $chatId, int $userId): bool
+    {
+        return static::getInstance()->api()->approveChatJoinRequest($chatId, $userId);
+    }
+
+    public static function declineChatJoinRequest(int|string $chatId, int $userId): bool
+    {
+        return static::getInstance()->api()->declineChatJoinRequest($chatId, $userId);
+    }
+
+    public static function unpinAllChatMessages(int|string $chatId): bool
+    {
+        return static::getInstance()->api()->unpinAllChatMessages($chatId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Bot profile
+    // -------------------------------------------------------------------------
+
+    public static function setMyName(string $name = '', array $options = []): bool
+    {
+        return static::getInstance()->api()->setMyName($name, $options);
+    }
+
+    public static function getMyName(array $options = []): array
+    {
+        return static::getInstance()->api()->getMyName($options);
+    }
+
+    public static function setMyDescription(string $description = '', array $options = []): bool
+    {
+        return static::getInstance()->api()->setMyDescription($description, $options);
+    }
+
+    public static function getMyDescription(array $options = []): array
+    {
+        return static::getInstance()->api()->getMyDescription($options);
+    }
+
+    public static function setMyShortDescription(string $shortDescription = '', array $options = []): bool
+    {
+        return static::getInstance()->api()->setMyShortDescription($shortDescription, $options);
+    }
+
+    public static function getMyShortDescription(array $options = []): array
+    {
+        return static::getInstance()->api()->getMyShortDescription($options);
+    }
+
+    // -------------------------------------------------------------------------
+    // Payments
+    // -------------------------------------------------------------------------
+
+    public static function sendInvoice(
+        int|string $chatId,
+        string $title,
+        string $description,
+        string $payload,
+        string $currency,
+        array $prices,
+        array $options = [],
+    ): Message {
+        return static::getInstance()->api()->sendInvoice($chatId, $title, $description, $payload, $currency, $prices, $options);
+    }
+
+    public static function answerShippingQuery(string $shippingQueryId, bool $ok, array $options = []): bool
+    {
+        return static::getInstance()->api()->answerShippingQuery($shippingQueryId, $ok, $options);
+    }
+
+    public static function answerPreCheckoutQuery(string $preCheckoutQueryId, bool $ok, array $options = []): bool
+    {
+        return static::getInstance()->api()->answerPreCheckoutQuery($preCheckoutQueryId, $ok, $options);
+    }
+
+    public static function deleteMessages(int|string $chatId, array $messageIds): bool
+    {
+        return static::getInstance()->api()->deleteMessages($chatId, $messageIds);
     }
 
     // -------------------------------------------------------------------------

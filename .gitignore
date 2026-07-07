@@ -30,6 +30,7 @@ desktop.ini
 *.log
 /logs/
 
-# AI
+# AI / local dev docs
 /.claude
 CLAUDE.md
+HANDOFF.md

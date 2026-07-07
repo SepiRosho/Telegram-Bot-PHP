@@ -393,4 +393,231 @@ class TelegramApi
     {
         return (bool) $this->http->post('deleteMyCommands', $options);
     }
+
+    // -------------------------------------------------------------------------
+    // Polling
+    // -------------------------------------------------------------------------
+
+    public function getUpdates(array $options = []): array
+    {
+        return $this->http->post('getUpdates', $options);
+    }
+
+    // -------------------------------------------------------------------------
+    // Additional media
+    // -------------------------------------------------------------------------
+
+    public function sendVideoNote(int|string $chatId, string $videoNote, array $options = []): Message
+    {
+        return Message::fromArray($this->http->post('sendVideoNote', array_merge([
+            'chat_id'    => $chatId,
+            'video_note' => $videoNote,
+        ], $options)));
+    }
+
+    public function editMessageMedia(int|string $chatId, int $messageId, array $media, array $options = []): Message
+    {
+        return Message::fromArray($this->http->post('editMessageMedia', array_merge([
+            'chat_id'    => $chatId,
+            'message_id' => $messageId,
+            'media'      => $media,
+        ], $options)));
+    }
+
+    public function stopPoll(int|string $chatId, int $messageId, array $options = []): array
+    {
+        return $this->http->post('stopPoll', array_merge([
+            'chat_id'    => $chatId,
+            'message_id' => $messageId,
+        ], $options));
+    }
+
+    // -------------------------------------------------------------------------
+    // Chat administration — extended
+    // -------------------------------------------------------------------------
+
+    public function setChatTitle(int|string $chatId, string $title): bool
+    {
+        return (bool) $this->http->post('setChatTitle', [
+            'chat_id' => $chatId,
+            'title'   => $title,
+        ]);
+    }
+
+    public function setChatDescription(int|string $chatId, string $description = ''): bool
+    {
+        return (bool) $this->http->post('setChatDescription', array_filter([
+            'chat_id'     => $chatId,
+            'description' => $description !== '' ? $description : null,
+        ]));
+    }
+
+    public function setChatPhoto(int|string $chatId, mixed $photo): bool
+    {
+        return (bool) $this->http->post('setChatPhoto', [
+            'chat_id' => $chatId,
+            'photo'   => $photo,
+        ]);
+    }
+
+    public function deleteChatPhoto(int|string $chatId): bool
+    {
+        return (bool) $this->http->post('deleteChatPhoto', ['chat_id' => $chatId]);
+    }
+
+    public function getChatAdministrators(int|string $chatId): array
+    {
+        return $this->http->post('getChatAdministrators', ['chat_id' => $chatId]);
+    }
+
+    public function setChatPermissions(int|string $chatId, array $permissions, array $options = []): bool
+    {
+        return (bool) $this->http->post('setChatPermissions', array_merge([
+            'chat_id'     => $chatId,
+            'permissions' => $permissions,
+        ], $options));
+    }
+
+    public function revokeChatInviteLink(int|string $chatId, string $inviteLink): array
+    {
+        return $this->http->post('revokeChatInviteLink', [
+            'chat_id'     => $chatId,
+            'invite_link' => $inviteLink,
+        ]);
+    }
+
+    public function approveChatJoinRequest(int|string $chatId, int $userId): bool
+    {
+        return (bool) $this->http->post('approveChatJoinRequest', [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+        ]);
+    }
+
+    public function declineChatJoinRequest(int|string $chatId, int $userId): bool
+    {
+        return (bool) $this->http->post('declineChatJoinRequest', [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+        ]);
+    }
+
+    public function unpinAllChatMessages(int|string $chatId): bool
+    {
+        return (bool) $this->http->post('unpinAllChatMessages', ['chat_id' => $chatId]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Bot profile
+    // -------------------------------------------------------------------------
+
+    public function setMyName(string $name = '', array $options = []): bool
+    {
+        return (bool) $this->http->post('setMyName', array_merge(
+            array_filter(['name' => $name !== '' ? $name : null]),
+            $options
+        ));
+    }
+
+    public function getMyName(array $options = []): array
+    {
+        return $this->http->post('getMyName', $options);
+    }
+
+    public function setMyDescription(string $description = '', array $options = []): bool
+    {
+        return (bool) $this->http->post('setMyDescription', array_merge(
+            array_filter(['description' => $description !== '' ? $description : null]),
+            $options
+        ));
+    }
+
+    public function getMyDescription(array $options = []): array
+    {
+        return $this->http->post('getMyDescription', $options);
+    }
+
+    public function setMyShortDescription(string $shortDescription = '', array $options = []): bool
+    {
+        return (bool) $this->http->post('setMyShortDescription', array_merge(
+            array_filter(['short_description' => $shortDescription !== '' ? $shortDescription : null]),
+            $options
+        ));
+    }
+
+    public function getMyShortDescription(array $options = []): array
+    {
+        return $this->http->post('getMyShortDescription', $options);
+    }
+
+    public function setChatMenuButton(array $options = []): bool
+    {
+        return (bool) $this->http->post('setChatMenuButton', $options);
+    }
+
+    public function getChatMenuButton(array $options = []): array
+    {
+        return $this->http->post('getChatMenuButton', $options);
+    }
+
+    public function setMyDefaultAdminRights(array $options = []): bool
+    {
+        return (bool) $this->http->post('setMyDefaultAdminRights', $options);
+    }
+
+    public function getMyDefaultAdminRights(array $options = []): array
+    {
+        return $this->http->post('getMyDefaultAdminRights', $options);
+    }
+
+    // -------------------------------------------------------------------------
+    // Payments
+    // -------------------------------------------------------------------------
+
+    public function sendInvoice(
+        int|string $chatId,
+        string $title,
+        string $description,
+        string $payload,
+        string $currency,
+        array $prices,
+        array $options = [],
+    ): Message {
+        return Message::fromArray($this->http->post('sendInvoice', array_merge([
+            'chat_id'     => $chatId,
+            'title'       => $title,
+            'description' => $description,
+            'payload'     => $payload,
+            'currency'    => $currency,
+            'prices'      => $prices,
+        ], $options)));
+    }
+
+    public function answerShippingQuery(string $shippingQueryId, bool $ok, array $options = []): bool
+    {
+        return (bool) $this->http->post('answerShippingQuery', array_merge([
+            'shipping_query_id' => $shippingQueryId,
+            'ok'                => $ok,
+        ], $options));
+    }
+
+    public function answerPreCheckoutQuery(string $preCheckoutQueryId, bool $ok, array $options = []): bool
+    {
+        return (bool) $this->http->post('answerPreCheckoutQuery', array_merge([
+            'pre_checkout_query_id' => $preCheckoutQueryId,
+            'ok'                    => $ok,
+        ], $options));
+    }
+
+    // -------------------------------------------------------------------------
+    // Messages — delete multiple
+    // -------------------------------------------------------------------------
+
+    public function deleteMessages(int|string $chatId, array $messageIds): bool
+    {
+        return (bool) $this->http->post('deleteMessages', [
+            'chat_id'     => $chatId,
+            'message_ids' => $messageIds,
+        ]);
+    }
 }
