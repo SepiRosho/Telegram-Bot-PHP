@@ -124,6 +124,57 @@ Open `logs/last-update.json` after sending a message. It shows the exact structu
 
 ---
 
+## SSL certificate errors (Windows)
+
+If `devflow poll`, `broadcast:run`, or any live API call fails with:
+
+```
+cURL error 60: SSL certificate problem: self-signed certificate in certificate chain
+```
+
+this is almost always **not** a man-in-the-middle proxy problem — it's PHP's `curl` extension on Windows having no CA bundle configured at all. Native `curl.exe` uses Windows' own Schannel + the OS trusted-certificate store, but PHP's `curl` extension links against OpenSSL, which never looks at the Windows store. If `curl.cainfo` / `openssl.cafile` are empty in `php.ini`, PHP rejects **any** valid HTTPS certificate as untrusted — including Telegram's real one — whether or not you're behind a proxy (`PROXY_URL`).
+
+### Confirm it's this issue
+
+```powershell
+php -i | findstr "cainfo cafile"
+```
+
+If both show `no value`, that's the cause.
+
+### Fix (machine-local — no code or project change needed)
+
+1. Download the public Mozilla CA bundle: https://curl.se/ca/cacert.pem — save it somewhere permanent, e.g. `C:\php\cacert.pem`
+2. Open your `php.ini` (find its path with `php --ini`) and set:
+   ```ini
+   [curl]
+   curl.cainfo = "C:\php\cacert.pem"
+
+   [openssl]
+   openssl.cafile = "C:\php\cacert.pem"
+   ```
+3. Restart Apache/your web server (webhook mode) or just re-run the CLI command (`devflow poll`).
+
+### Verify
+
+```powershell
+php -r "var_dump(curl_exec(curl_init('https://api.telegram.org/')) !== false);"
+```
+
+Should print `bool(true)`.
+
+### If you're behind a proxy (PROXY_URL / countries where Telegram is blocked)
+
+This same fix covers the proxy case too, as long as your proxy is a plain relay (most SOCKS5/HTTP proxies are). Genuine TLS interception (a proxy that decrypts and re-signs traffic with its own certificate) is rare — you can tell the two apart by running, from a normal terminal:
+
+```powershell
+curl -v -x http://127.0.0.1:<port> https://api.telegram.org/
+```
+
+and checking the `issuer:`/`subject:` line. If it names a real public CA (DigiCert, GoDaddy, ISRG/Let's Encrypt, Google Trust Services, etc.), you just need the CA bundle fix above. If it names your proxy software itself, that proxy is intercepting traffic — either disable its HTTPS decryption/sniffing feature, or export its root certificate and append it to the `cacert.pem` from step 1.
+
+---
+
 ## Stopping the bot
 
 To stop Telegram from sending requests (e.g. while you're rebuilding):
