@@ -2,11 +2,22 @@
 
 namespace Devflow\TelegramBot\Api;
 
+use Devflow\TelegramBot\Api\Traits\BusinessGiftsStories;
+use Devflow\TelegramBot\Api\Traits\ForumAndChatAdmin;
+use Devflow\TelegramBot\Api\Traits\MessagingExtras;
+use Devflow\TelegramBot\Api\Traits\PaymentsGamesMisc;
+use Devflow\TelegramBot\Api\Traits\Stickers;
 use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\User;
 
 class TelegramApi
 {
+    use BusinessGiftsStories;
+    use ForumAndChatAdmin;
+    use MessagingExtras;
+    use PaymentsGamesMisc;
+    use Stickers;
+
     public function __construct(private readonly HttpClientInterface $http) {}
 
     public function getMe(): User

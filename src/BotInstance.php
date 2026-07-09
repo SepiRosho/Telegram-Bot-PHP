@@ -156,6 +156,72 @@ class BotInstance
         return $this;
     }
 
+    public function onBusinessConnection(callable|string $handler): static
+    {
+        $this->router->addRoute('business_connection', '*', $handler);
+        return $this;
+    }
+
+    public function onBusinessMessage(callable|string $handler): static
+    {
+        $this->router->addRoute('business_message', '*', $handler);
+        return $this;
+    }
+
+    public function onEditedBusinessMessage(callable|string $handler): static
+    {
+        $this->router->addRoute('edited_business_message', '*', $handler);
+        return $this;
+    }
+
+    public function onDeletedBusinessMessages(callable|string $handler): static
+    {
+        $this->router->addRoute('deleted_business_messages', '*', $handler);
+        return $this;
+    }
+
+    public function onGuestMessage(callable|string $handler): static
+    {
+        $this->router->addRoute('guest_message', '*', $handler);
+        return $this;
+    }
+
+    public function onMessageReaction(callable|string $handler): static
+    {
+        $this->router->addRoute('message_reaction', '*', $handler);
+        return $this;
+    }
+
+    public function onMessageReactionCount(callable|string $handler): static
+    {
+        $this->router->addRoute('message_reaction_count', '*', $handler);
+        return $this;
+    }
+
+    public function onPurchasedPaidMedia(callable|string $handler): static
+    {
+        $this->router->addRoute('purchased_paid_media', '*', $handler);
+        return $this;
+    }
+
+    public function onChatBoost(callable|string $handler): static
+    {
+        $this->router->addRoute('chat_boost', '*', $handler);
+        return $this;
+    }
+
+    public function onRemovedChatBoost(callable|string $handler): static
+    {
+        $this->router->addRoute('removed_chat_boost', '*', $handler);
+        return $this;
+    }
+
+    public function onManagedBot(callable|string $handler): static
+    {
+        $this->router->addRoute('managed_bot', '*', $handler);
+        return $this;
+    }
+
     public function onStep(string $step, callable|string $handler): static
     {
         $this->router->addRoute('step', $step, $handler);
