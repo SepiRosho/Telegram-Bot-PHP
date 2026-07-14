@@ -4,6 +4,44 @@ Telegram requires your webhook URL to use **HTTPS**. On localhost you have plain
 
 ---
 
+## Testing without a token, webhook, or database
+
+For verifying handler logic in CI (or just locally without any live bot), use `Bot::fake()` instead of `Bot::init()`. It swaps in an in-memory HTTP client (no real network calls) and an in-memory user repository (no real database), while your production handler code — `Bot::onCommand()`, `Bot::onText()`, etc. inside a `register()` method — keeps working unmodified, since it all routes through the same static `Bot` facade.
+
+```php
+use Devflow\TelegramBot\Bot;
+use Devflow\TelegramBot\Context;
+use Devflow\TelegramBot\Testing\UpdateFactory;
+use PHPUnit\Framework\TestCase;
+
+class StartCommandTest extends TestCase
+{
+    public function test_start_replies_with_a_greeting(): void
+    {
+        $fake = Bot::fake();
+        $fake->onCommand('start', function (Context $ctx) {
+            $ctx->reply('Hello, ' . $ctx->from()?->firstName);
+        });
+
+        $fake->dispatch(UpdateFactory::command('start'));
+
+        $fake->assertSent('sendMessage', fn(array $params) => $params['text'] === 'Hello, Test');
+    }
+}
+```
+
+`UpdateFactory` builds synthetic updates — `::text()`, `::command()`, `::callback()`, `::photo()`, `::voice()`, `::document()`, and `::raw()` as an escape hatch for anything else. `$fake->assertNotSent('sendMessage')` asserts the opposite. `$fake->users()` exposes the in-memory `FakeUserRepository`, so `step()`/`temp()`/`setLocale()` flows can be exercised across multiple `dispatch()` calls exactly like a real multi-message conversation.
+
+If your bot is registered via a real `App\Handlers\*::register()` class (the scaffolded pattern), call it after `Bot::fake()` and before `dispatch()`:
+
+```php
+$fake = Bot::fake();
+\App\Handlers\UserHandlers::register();
+$fake->dispatch(UpdateFactory::command('start'));
+```
+
+---
+
 ## Option A: ngrok (recommended)
 
 ### Install ngrok on Windows

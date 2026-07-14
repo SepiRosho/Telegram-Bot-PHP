@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot;
 
 use Devflow\TelegramBot\Exceptions\BotNotInitializedException;
+use Devflow\TelegramBot\Testing\FakeBot;
 use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\User;
 
@@ -26,6 +27,18 @@ class Bot
             throw new BotNotInitializedException();
         }
         return static::$instance;
+    }
+
+    /**
+     * Swap the active bot instance for an in-memory FakeBot (no real network
+     * calls, no real database) — production handler code calling Bot::* still
+     * works unmodified since it routes through the same static instance.
+     */
+    public static function fake(array $config = []): FakeBot
+    {
+        $fake = new FakeBot('fake-token', $config);
+        static::$instance = $fake->instance();
+        return $fake;
     }
 
     /** Proxies any unrecognized static call to BotInstance → TelegramApi. */

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $last_name
  * @property string|null $username
  * @property string|null $language_code
+ * @property string|null $language Explicit user-chosen locale (see Support\Lang) — takes priority over language_code.
  * @property string $role
  * @property array|null $permissions
  * @property bool $is_banned
@@ -40,6 +41,7 @@ class TelegramUser extends Model
         'last_name',
         'username',
         'language_code',
+        'language',
         'role',
         'permissions',
         'is_banned',

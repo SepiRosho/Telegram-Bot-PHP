@@ -4,6 +4,10 @@ namespace Devflow\TelegramBot\Support;
 
 use Devflow\TelegramBot\Context;
 
+/**
+ * @deprecated Use Support\Lang / Context::t() instead — one class per string
+ * does not scale to a real app's string count. Kept for backward compatibility.
+ */
 abstract class BotText
 {
     abstract protected static function translations(): array;

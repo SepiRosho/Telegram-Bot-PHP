@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `telegram_users` (
     `last_name`         VARCHAR(255)    NULL,
     `username`          VARCHAR(255)    NULL,
     `language_code`     VARCHAR(10)     NULL,
+    `language`          VARCHAR(10)     NULL,
     `role`              VARCHAR(50)     NOT NULL DEFAULT 'user',
     `permissions`       JSON            NULL,
     `is_banned`         TINYINT(1)      NOT NULL DEFAULT 0,

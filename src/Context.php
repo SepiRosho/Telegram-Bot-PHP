@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot;
 
 use Devflow\TelegramBot\Api\TelegramApi;
+use Devflow\TelegramBot\Support\Lang;
 use Devflow\TelegramBot\Types\CallbackQuery;
 use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\Update;
@@ -214,5 +215,32 @@ class Context
         $this->dbUser->step = null;
         $this->dbUser->temp_data = null;
         $this->dbUser->save();
+    }
+
+    // -------------------------------------------------------------------------
+    // i18n
+    // -------------------------------------------------------------------------
+
+    /**
+     * Resolve the active locale: stored user preference → Telegram client
+     * language → the library's configured default locale.
+     */
+    public function locale(): string
+    {
+        return $this->dbUser?->language
+            ?? $this->from()?->languageCode
+            ?? Lang::defaultLocale();
+    }
+
+    public function setLocale(string $locale): void
+    {
+        if ($this->dbUser === null) return;
+        $this->dbUser->language = $locale;
+        $this->dbUser->save();
+    }
+
+    public function t(string $key, array $vars = [], ?string $locale = null): string
+    {
+        return Lang::get($locale ?? $this->locale(), $key, $vars);
     }
 }

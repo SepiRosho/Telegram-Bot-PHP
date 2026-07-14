@@ -3,9 +3,11 @@
 namespace Devflow\TelegramBot;
 
 use Devflow\TelegramBot\Api\HttpClient;
+use Devflow\TelegramBot\Api\HttpClientInterface;
 use Devflow\TelegramBot\Api\TelegramApi;
 use Devflow\TelegramBot\Exceptions\WebhookException;
 use Devflow\TelegramBot\Routing\Router;
+use Devflow\TelegramBot\Support\Lang;
 use Devflow\TelegramBot\Types\Update;
 
 class BotInstance
@@ -16,13 +18,21 @@ class BotInstance
     public function __construct(
         string $token,
         private array $config = [],
+        ?HttpClientInterface $http = null,
     ) {
         $httpOptions = [];
         if (!empty($config['proxy'])) {
             $httpOptions['proxy'] = $config['proxy'];
         }
-        $this->api = new TelegramApi(new HttpClient($token, $httpOptions));
+        $this->api = new TelegramApi($http ?? new HttpClient($token, $httpOptions));
         $this->router = new Router();
+
+        if (!empty($config['lang_path'])) {
+            Lang::setPath($config['lang_path']);
+        }
+        if (!empty($config['default_locale'])) {
+            Lang::setDefaultLocale($config['default_locale']);
+        }
     }
 
     public function api(): TelegramApi

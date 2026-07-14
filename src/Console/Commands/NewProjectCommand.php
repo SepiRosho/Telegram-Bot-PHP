@@ -61,6 +61,7 @@ class NewProjectCommand
             'bootstrap',
             'config',
             'database/migrations',
+            'lang',
             'public',
             'logs',
         ];
@@ -90,6 +91,8 @@ class NewProjectCommand
             'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
             'app/Handlers/AdminHandlers.php'            => $this->adminHandlers(),
             'app/Texts/WelcomeText.php'                 => $this->welcomeText(),
+            'lang/en.php'                                => $this->langEn(),
+            'lang/fa.php'                                => $this->langFa(),
             'database/migrations/telegram_users.sql'    => $this->migrationTelegramUsers(),
             'database/migrations/bot_settings.sql'      => $this->migrationBotSettings(),
             'database/migrations/telegram_broadcasts.sql' => $this->migrationBroadcasts(),
@@ -250,10 +253,16 @@ class NewProjectCommand
         // ─── Bot init ──────────────────────────────────────────────────────────
         // webhook_secret: validates the X-Telegram-Bot-Api-Secret-Token header (set WEBHOOK_SECRET in .env).
         // proxy:          HTTP or SOCKS5 proxy URL for countries where Telegram is blocked (set PROXY_URL in .env).
+        // ─── i18n ──────────────────────────────────────────────────────────────
+        // lang_path: directory of per-locale array files (lang/en.php, lang/fa.php, ...).
+        // Use $ctx->t('key', ['name' => ...]) in handlers; $ctx->locale() resolves
+        // the stored user preference, falling back to Telegram's client language.
         Bot::init(env('BOT_TOKEN'), [
             'database'       => true,
             'webhook_secret' => env('WEBHOOK_SECRET') ?: null,
             'proxy'          => env('PROXY_URL') ?: null,
+            'lang_path'      => __DIR__ . '/../lang',
+            'default_locale' => 'en',
         ]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
@@ -578,6 +587,38 @@ class NewProjectCommand
         PHP;
     }
 
+    private function langEn(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        // Dot-notation keys are supported: 'menu' => ['account' => '...'] is
+        // reachable as $ctx->t('menu.account').
+        return [
+            'welcome' => 'Hello, {name}! Welcome to the bot.',
+            'menu'    => [
+                'account' => '📋 My Account',
+                'help'    => '❓ Help',
+            ],
+        ];
+        PHP;
+    }
+
+    private function langFa(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        return [
+            'welcome' => 'سلام، {name}! به ربات خوش آمدید.',
+            'menu'    => [
+                'account' => '📋 حساب من',
+                'help'    => '❓ راهنما',
+            ],
+        ];
+        PHP;
+    }
+
     private function migrationTelegramUsers(): string
     {
         return <<<'SQL'
@@ -589,6 +630,7 @@ class NewProjectCommand
             `last_name`        VARCHAR(255)    NULL,
             `username`         VARCHAR(255)    NULL,
             `language_code`    VARCHAR(10)     NULL,
+            `language`         VARCHAR(10)     NULL,
             `role`             VARCHAR(50)     NOT NULL DEFAULT 'user',
             `permissions`      JSON            NULL,
             `is_banned`        TINYINT(1)      NOT NULL DEFAULT 0,
