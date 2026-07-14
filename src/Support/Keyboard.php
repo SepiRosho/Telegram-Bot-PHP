@@ -78,4 +78,37 @@ class Keyboard
     {
         return ['remove_keyboard' => true];
     }
+
+    /**
+     * Build a paginated inline keyboard: one row per item (via $renderRow),
+     * plus a prev/page/next navigation row when there's more than one page.
+     *
+     * $renderRow receives a single item and must return one keyboard row,
+     * e.g. fn($user) => [Keyboard::button("Unban {$user->first_name}", "unban_{$user->id}")]
+     *
+     * Navigation callback data is "{$cbPrefix}page_{N}" — check for that
+     * prefix in your callback handler to move between pages.
+     */
+    public static function paginate(array $items, int $page, callable $renderRow, string $cbPrefix, int $perPage = 10): array
+    {
+        $totalPages = max(1, (int) ceil(count($items) / $perPage));
+        $page = max(1, min($page, $totalPages));
+
+        $slice = array_slice($items, ($page - 1) * $perPage, $perPage);
+        $rows = array_map($renderRow, $slice);
+
+        if ($totalPages > 1) {
+            $nav = [];
+            if ($page > 1) {
+                $nav[] = self::button('⬅️', "{$cbPrefix}page_" . ($page - 1));
+            }
+            $nav[] = self::button("{$page}/{$totalPages}", "{$cbPrefix}noop");
+            if ($page < $totalPages) {
+                $nav[] = self::button('➡️', "{$cbPrefix}page_" . ($page + 1));
+            }
+            $rows[] = $nav;
+        }
+
+        return self::inline($rows);
+    }
 }

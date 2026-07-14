@@ -27,16 +27,19 @@ class UserRepository
 
         $modelClass = $this->config['user_model'] ?? TelegramUser::class;
 
-        $user = $modelClass::firstOrCreate(
-            ['telegram_id' => $from->id],
-            [
-                'chat_id'       => $chatId,
-                'first_name'    => $from->firstName,
-                'last_name'     => $from->lastName,
-                'username'      => $from->username,
-                'language_code' => $from->languageCode,
-            ]
-        );
+        $attributes = [
+            'chat_id'       => $chatId,
+            'first_name'    => $from->firstName,
+            'last_name'     => $from->lastName,
+            'username'      => $from->username,
+            'language_code' => $from->languageCode,
+        ];
+
+        if (isset($this->config['user_defaults']) && is_callable($this->config['user_defaults'])) {
+            $attributes = array_merge($attributes, ($this->config['user_defaults'])($update));
+        }
+
+        $user = $modelClass::firstOrCreate(['telegram_id' => $from->id], $attributes);
 
         $user->chat_id    = $chatId;
         $user->first_name = $from->firstName;

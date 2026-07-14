@@ -170,6 +170,8 @@ Bot::onCommand('pin', function (Context $ctx) {
 });
 ```
 
+Most `send*()`/`edit*()` methods return a typed `Message` object. A handful of methods return Telegram's raw response as a plain `array` instead — most notably `copyMessage()`, whose result is just `['message_id' => ...]` (copying doesn't return the full message body the way `sendMessage` does). Check the return type on `TelegramApi`/`Bot::` for any given method if you're unsure which shape to expect.
+
 ---
 
 ## Next step

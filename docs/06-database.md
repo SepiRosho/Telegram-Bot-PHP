@@ -227,6 +227,22 @@ Bot::init(env('BOT_TOKEN'), [
 
 Once configured, `$ctx->user()` and auto-registration on first `/start` both return instances of your subclass instead of the base `TelegramUser`.
 
+### Seeding fields on first contact
+
+Auto-registration runs on **every** update and only sets a fixed set of columns (name, username, language code). To seed additional fields — a role, a referral code, a joined-at timestamp — the moment a user is first seen, without an idempotent check inside `/start`, use the `user_defaults` config key:
+
+```php
+Bot::init(env('BOT_TOKEN'), [
+    'database'       => true,
+    'user_defaults'  => fn(\Devflow\TelegramBot\Types\Update $update): array => [
+        'role'      => (string) $update->message?->from?->id === env('ADMIN_CHAT_ID') ? 'superadmin' : 'user',
+        'joined_at' => date('Y-m-d H:i:s'),
+    ],
+]);
+```
+
+The callback only runs the first time a `telegram_id` is seen — it has no effect on returning users.
+
 ## Working with BotSetting
 
 Store and retrieve bot-wide settings:
@@ -243,6 +259,37 @@ $msg = BotSetting::get('welcome_message', 'Hello!');
 // Delete a setting
 BotSetting::forget('welcome_message');
 ```
+
+## Sending broadcasts
+
+Queue a broadcast row, then process the queue with `vendor/bin/devflow broadcast:run` (rate-limited via `BROADCAST_RATE` in `.env`, default 25 msg/s):
+
+```php
+use Devflow\TelegramBot\Database\Models\Broadcast;
+
+// Plain text (the default `type`)
+Broadcast::create(['message' => 'Hello everyone!']);
+
+// Media — `media` is a file_id, `options` is passed straight through to the
+// matching TelegramApi send*() method (e.g. `caption` for photo/video/etc)
+Broadcast::create([
+    'type'    => 'photo',
+    'media'   => $fileId,
+    'options' => ['caption' => 'Check this out!'],
+]);
+
+// Re-send (copy) an existing message to everyone, exactly as it appeared —
+// works for any message type, not just the ones with a dedicated `type`
+Broadcast::create([
+    'type'    => 'copy',
+    'options' => ['from_chat_id' => $adminChatId, 'message_id' => $messageId],
+]);
+
+// Get a summary message once the run finishes
+Broadcast::create(['message' => 'Hello!', 'notify_chat_id' => $adminChatId]);
+```
+
+Supported `type` values: `text` (default), `photo`, `document`, `video`, `audio`, `voice`, `animation`, `copy`. Progress (`sent_count`/`failed_count`/`status`) is written back to the row as the run proceeds, so an admin panel can poll it live.
 
 ---
 

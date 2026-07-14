@@ -10,6 +10,14 @@ class TelegramUserTest extends TestCase
 {
     protected function setUp(): void
     {
+        // Eloquent caches which columns are "guardable" per model class name
+        // (Model::$guardableColumns), introspected from whatever connection
+        // was active the first time it's checked. Other test classes create
+        // a `telegram_users` table with a different column set under this
+        // same model class, so that cache must be cleared here or a stale
+        // list from a previous test silently drops columns in this one.
+        self::resetGuardableColumnsCache();
+
         $capsule = new Capsule();
         $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
         $capsule->setAsGlobal();
@@ -28,6 +36,14 @@ class TelegramUserTest extends TestCase
     protected function tearDown(): void
     {
         Capsule::schema()->dropIfExists('telegram_users');
+    }
+
+    private static function resetGuardableColumnsCache(): void
+    {
+        $ref = new \ReflectionClass(\Illuminate\Database\Eloquent\Model::class);
+        $prop = $ref->getProperty('guardableColumns');
+        $prop->setAccessible(true);
+        $prop->setValue(null, []);
     }
 
     public function test_columns_present_in_the_table_are_mass_assignable_by_default(): void

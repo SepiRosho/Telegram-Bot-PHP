@@ -14,6 +14,7 @@ class BotInstance
 {
     private TelegramApi $api;
     private Router $router;
+    private ?string $username = null;
 
     public function __construct(
         string $token,
@@ -48,6 +49,35 @@ class BotInstance
     public function config(string $key, mixed $default = null): mixed
     {
         return $this->config[$key] ?? $default;
+    }
+
+    /**
+     * The bot's @username, cached to avoid an uncached getMe() call per
+     * request. Cached in bot_settings when the database is enabled (so it
+     * survives across requests), otherwise only for this process's lifetime.
+     */
+    public function username(): string
+    {
+        if ($this->username !== null) {
+            return $this->username;
+        }
+
+        $useDb = $this->config['database'] ?? false;
+
+        if ($useDb) {
+            $cached = \Devflow\TelegramBot\Database\Models\BotSetting::get('bot_username');
+            if ($cached !== null) {
+                return $this->username = $cached;
+            }
+        }
+
+        $username = $this->api->getMe()->username ?? '';
+
+        if ($useDb) {
+            \Devflow\TelegramBot\Database\Models\BotSetting::set('bot_username', $username);
+        }
+
+        return $this->username = $username;
     }
 
     // -------------------------------------------------------------------------
@@ -269,6 +299,9 @@ class BotInstance
         if ($webhookSecret !== null) {
             $received = $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '';
             if (!hash_equals((string) $webhookSecret, $received)) {
+                // Set the status before throwing: PHP's default uncaught-exception
+                // handling otherwise surfaces this as a 500, not the more correct 403.
+                http_response_code(403);
                 throw new WebhookException('Invalid webhook secret token.');
             }
         }

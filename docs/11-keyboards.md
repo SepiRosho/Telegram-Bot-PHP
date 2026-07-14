@@ -78,6 +78,32 @@ $ctx->reply('Keyboard removed.', [
 
 ---
 
+## Pagination
+
+`Keyboard::paginate()` builds a page of item rows plus a prev/page-number/next navigation row — for things like a banned-users list or a channel list where you don't want to dump everything into one message.
+
+```php
+$page = (int) ($ctx->callbackData() ? str_replace('banned_page_', '', $ctx->callbackData()) : 1);
+
+$ctx->reply('Banned users:', [
+    'reply_markup' => Keyboard::paginate(
+        items: $bannedUsers,                 // any array/list
+        page: $page,
+        renderRow: fn($user) => [Keyboard::button("🚫 {$user->first_name}", "unban_{$user->id}")],
+        cbPrefix: 'banned_',                  // nav buttons send "banned_page_{N}"
+        perPage: 10,
+    ),
+]);
+
+Bot::onCallbackQuery('banned_page_*', function (Context $ctx) {
+    // re-render the same list at the requested page
+});
+```
+
+`renderRow` receives one item and returns one keyboard row (usually a single button, but can be more). The nav row (`⬅️ 2/5 ➡️`) only appears when there's more than one page; an out-of-range `page` is clamped into range automatically.
+
+---
+
 ## Handling Callback Queries
 
 Register handlers with `Bot::onCallbackQuery()`. Use `*` for wildcards.
@@ -137,3 +163,4 @@ Bot::run();
 | `Keyboard::button(string $text, string $callbackData)` | `array` | Inline callback button |
 | `Keyboard::url(string $text, string $url)` | `array` | Inline URL button |
 | `Keyboard::remove()` | `array` | Remove reply keyboard |
+| `Keyboard::paginate(array $items, int $page, callable $renderRow, string $cbPrefix, int $perPage = 10)` | `array` | Paginated inline keyboard with nav row |

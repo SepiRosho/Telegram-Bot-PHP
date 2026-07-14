@@ -230,6 +230,12 @@ class Bot
         return static::getInstance()->api()->getMe();
     }
 
+    /** The bot's @username, cached (see BotInstance::username()). Handy for building t.me deep links. */
+    public static function username(): string
+    {
+        return static::getInstance()->username();
+    }
+
     public static function setWebhook(string $url, array $options = []): bool
     {
         return static::getInstance()->api()->setWebhook($url, $options);

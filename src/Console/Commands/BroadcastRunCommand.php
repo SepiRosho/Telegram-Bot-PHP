@@ -66,7 +66,7 @@ class BroadcastRunCommand
 
         foreach ($users as $user) {
             try {
-                Bot::sendMessage($user->chat_id, $broadcast->message, $broadcast->options ?? []);
+                $this->sendOne($broadcast, $user->chat_id);
                 $sent++;
             } catch (\Throwable) {
                 $failed++;
@@ -89,6 +89,39 @@ class BroadcastRunCommand
         $broadcast->save();
 
         $this->success("Broadcast #{$broadcast->id} complete — sent: {$sent}, failed: {$failed} / {$total}");
+
+        if ($broadcast->notify_chat_id) {
+            try {
+                Bot::sendMessage(
+                    $broadcast->notify_chat_id,
+                    "📣 Broadcast #{$broadcast->id} complete\nSent: {$sent}\nFailed: {$failed}\nTotal: {$total}",
+                );
+            } catch (\Throwable) {
+                // Don't let a failed notification mark an otherwise-successful broadcast as an error.
+            }
+        }
+    }
+
+    /** Dispatch a single recipient's message, honoring the broadcast's `type`. */
+    private function sendOne(Broadcast $broadcast, int|string $chatId): void
+    {
+        $options = $broadcast->options ?? [];
+
+        match ($broadcast->type) {
+            'photo'     => Bot::sendPhoto($chatId, $broadcast->media, $options),
+            'document'  => Bot::sendDocument($chatId, $broadcast->media, $options),
+            'video'     => Bot::sendVideo($chatId, $broadcast->media, $options),
+            'audio'     => Bot::sendAudio($chatId, $broadcast->media, $options),
+            'voice'     => Bot::sendVoice($chatId, $broadcast->media, $options),
+            'animation' => Bot::sendAnimation($chatId, $broadcast->media, $options),
+            'copy'      => Bot::copyMessage(
+                $chatId,
+                $options['from_chat_id'],
+                $options['message_id'],
+                array_diff_key($options, ['from_chat_id' => null, 'message_id' => null]),
+            ),
+            default     => Bot::sendMessage($chatId, $broadcast->message, $options),
+        };
     }
 
     private function line(string $msg): void
