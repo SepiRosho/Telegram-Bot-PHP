@@ -130,4 +130,40 @@ class UpdateTypeTest extends TestCase
         $this->assertSame('edited_message', $update->type());
         $this->assertNotNull($update->editedMessage);
     }
+
+    public function test_message_maps_caption_and_voice_and_raw(): void
+    {
+        $data = [
+            'message_id' => 8,
+            'date'       => 0,
+            'chat'       => ['id' => 100, 'type' => 'private'],
+            'from'       => ['id' => 200, 'is_bot' => false, 'first_name' => 'Ali'],
+            'voice'      => ['file_id' => 'v1', 'duration' => 3],
+            'caption'    => 'a voice caption',
+        ];
+
+        $message = Message::fromArray($data);
+
+        $this->assertSame('a voice caption', $message->caption);
+        $this->assertSame(['file_id' => 'v1', 'duration' => 3], $message->voice);
+        $this->assertNull($message->text);
+        $this->assertSame($data, $message->raw());
+    }
+
+    public function test_message_maps_reply_to_message_one_level(): void
+    {
+        $data = [
+            'message_id'      => 9,
+            'date'            => 0,
+            'chat'            => ['id' => 100, 'type' => 'private'],
+            'from'            => ['id' => 200, 'is_bot' => false, 'first_name' => 'Ali'],
+            'text'            => 'a reply',
+            'reply_to_message' => $this->baseMessage(),
+        ];
+
+        $message = Message::fromArray($data);
+
+        $this->assertInstanceOf(Message::class, $message->replyToMessage);
+        $this->assertSame('hello', $message->replyToMessage->text);
+    }
 }

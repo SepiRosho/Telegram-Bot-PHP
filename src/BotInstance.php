@@ -222,9 +222,9 @@ class BotInstance
         return $this;
     }
 
-    public function onStep(string $step, callable|string $handler): static
+    public function onStep(string $step, callable|string $handler, array $types = ['text']): static
     {
-        $this->router->addRoute('step', $step, $handler);
+        $this->router->addRoute('step', $step, $handler, $types);
         return $this;
     }
 

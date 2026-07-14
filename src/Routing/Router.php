@@ -5,6 +5,7 @@ namespace Devflow\TelegramBot\Routing;
 use Devflow\TelegramBot\Api\TelegramApi;
 use Devflow\TelegramBot\Context;
 use Devflow\TelegramBot\Handlers\HandlerInterface;
+use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\Update;
 
 class Router
@@ -12,9 +13,9 @@ class Router
     private array $routes = [];
     private array $middlewares = [];
 
-    public function addRoute(string $type, string $pattern, callable|string $handler): void
+    public function addRoute(string $type, string $pattern, callable|string $handler, array $types = ['text']): void
     {
-        $this->routes[] = new Route($type, $pattern, $handler);
+        $this->routes[] = new Route($type, $pattern, $handler, $types);
     }
 
     public function addMiddleware(callable|string $middleware): void
@@ -41,7 +42,7 @@ class Router
             }
 
             // Step routes need the loaded user to check step value
-            if ($route->type === 'step' && !$this->matchesStep($route->pattern, $update, $ctx)) {
+            if ($route->type === 'step' && !$this->matchesStep($route, $update, $ctx)) {
                 continue;
             }
 
@@ -98,12 +99,47 @@ class Router
         return $update->message->command() === ltrim($command, '/');
     }
 
-    private function matchesStep(string $pattern, Update $update, Context $ctx): bool
+    private function matchesStep(Route $route, Update $update, Context $ctx): bool
     {
-        if ($update->message?->text === null || $update->message->isCommand()) {
+        if ($update->message === null || $update->message->isCommand()) {
             return false;
         }
-        return $this->matchesPattern($pattern, (string) $ctx->step());
+        if (!$this->messageMatchesTypes($update->message, $route->types)) {
+            return false;
+        }
+        return $this->matchesPattern($route->pattern, (string) $ctx->step());
+    }
+
+    private function messageMatchesTypes(Message $message, array $types): bool
+    {
+        if (in_array('*', $types, true)) {
+            return true;
+        }
+
+        foreach ($types as $type) {
+            $matches = match ($type) {
+                'text'       => $message->text !== null,
+                'photo'      => $message->photo !== null,
+                'document'   => $message->document !== null,
+                'audio'      => $message->audio !== null,
+                'video'      => $message->video !== null,
+                'voice'      => $message->voice !== null,
+                'video_note' => $message->videoNote !== null,
+                'sticker'    => $message->sticker !== null,
+                'animation'  => $message->animation !== null,
+                'contact'    => $message->contact !== null,
+                'location'   => $message->location !== null,
+                'venue'      => $message->venue !== null,
+                'dice'       => $message->dice !== null,
+                default      => false,
+            };
+
+            if ($matches) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function matchesPattern(string $pattern, string $value): bool

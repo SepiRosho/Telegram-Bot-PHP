@@ -14,7 +14,7 @@ use Devflow\TelegramBot\Console\Commands\PollCommand;
 
 class Application
 {
-    private const VERSION = '1.5.0';
+    private const VERSION = '1.6.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
