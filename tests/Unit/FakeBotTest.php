@@ -85,4 +85,20 @@ class FakeBotTest extends TestCase
 
         $fake->assertSent('sendMessage', fn(array $p) => $p['text'] === 'media received');
     }
+
+    public function test_fake_user_supports_update_and_admin_checks_like_the_real_model(): void
+    {
+        // Regression test: real handler code commonly calls $ctx->user()->update([...])
+        // and ->isAdmin() (see the scaffolded UserHandlers/AdminHandlers), so FakeUser
+        // must support both to be a faithful stand-in for TelegramUser.
+        $fake = Bot::fake();
+        $fake->onCommand('start', function (Context $ctx) {
+            $ctx->user()->update(['current_panel' => 'user', 'role' => 'superadmin']);
+            $ctx->reply($ctx->user()->isAdmin() ? 'admin' : 'not admin');
+        });
+
+        $fake->dispatch(UpdateFactory::command('start'));
+
+        $fake->assertSent('sendMessage', fn(array $p) => $p['text'] === 'admin');
+    }
 }
