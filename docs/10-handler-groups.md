@@ -108,6 +108,24 @@ Bot::loadHandlers([
 
 If `UserHandlers` has an `onText` catch-all and `AdminHandlers` also has one, the `UserHandlers` version wins. Put general catch-alls last.
 
+An `onMessage()` catch-all matches **every** message type, including commands — so an early `onMessage()` handler can silently swallow `/admin` before it ever reaches a later-registered command route, with no error or warning. If you want an "unknown command" responder specifically, use `onUnknownCommand()` instead of `onMessage()`:
+
+```php
+Bot::onUnknownCommand(function (Context $ctx) {
+    $ctx->reply("Unknown command: /{$ctx->message()->command()}");
+});
+```
+
+Unlike `onMessage()`, `onUnknownCommand()` is **order-independent** — it's checked against the full set of commands registered anywhere via `onCommand()`, so it never fires for a command that *is* handled elsewhere, no matter where you register it relative to that handler.
+
+### Debugging which route matched
+
+Pass `'debug' => true` to `Bot::init()` to log which route matched every update (or that none did) via `Support\Log` — helpful when a handler you expect to fire doesn't:
+
+```php
+Bot::init(env('BOT_TOKEN'), ['debug' => true, /* ... */]);
+```
+
 ---
 
 ## Full example: a shop bot
@@ -166,4 +184,4 @@ Bot::loadHandlers([
 
 ## Next step
 
-[09-texts.md](09-texts.md) — Store and localize your bot's messages using text classes.
+[12-i18n.md](12-i18n.md) — Localize your bot's messages with key-based translations.

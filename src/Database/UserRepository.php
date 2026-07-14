@@ -7,6 +7,8 @@ use Devflow\TelegramBot\Types\Update;
 
 class UserRepository
 {
+    public function __construct(private array $config = []) {}
+
     public function findOrCreateByUpdate(Update $update): ?TelegramUser
     {
         $from = $update->message?->from
@@ -23,7 +25,9 @@ class UserRepository
             ?? $update->callbackQuery?->message?->chat->id
             ?? $from->id;
 
-        $user = TelegramUser::firstOrCreate(
+        $modelClass = $this->config['user_model'] ?? TelegramUser::class;
+
+        $user = $modelClass::firstOrCreate(
             ['telegram_id' => $from->id],
             [
                 'chat_id'       => $chatId,

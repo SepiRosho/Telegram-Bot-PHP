@@ -141,9 +141,14 @@ class Bot
         return static::getInstance()->onUpdate($handler);
     }
 
-    public static function onStep(string $step, callable|string $handler): BotInstance
+    public static function onStep(string $step, callable|string $handler, array $types = ['text']): BotInstance
     {
-        return static::getInstance()->onStep($step, $handler);
+        return static::getInstance()->onStep($step, $handler, $types);
+    }
+
+    public static function onUnknownCommand(callable|string $handler): BotInstance
+    {
+        return static::getInstance()->onUnknownCommand($handler);
     }
 
     public static function loadHandlers(array|string $handlers): BotInstance

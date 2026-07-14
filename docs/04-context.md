@@ -121,10 +121,40 @@ $msg->chat        // The chat object
 $msg->chat->id    // The chat ID (same as $ctx->chatId())
 $msg->photo       // Array of photo sizes, or null
 $msg->document    // Document object, or null
+$msg->voice       // Voice note, or null
+$msg->videoNote   // Video note ("round video"), or null
+$msg->sticker     // Sticker, or null
+$msg->animation   // Animation/GIF, or null
+$msg->contact     // Shared contact, or null
+$msg->location    // Shared location, or null
+$msg->caption     // Caption on a media message, or null
+$msg->replyToMessage // The Message this one replies to, or null
 $msg->isCommand() // true if the message is a /command
 $msg->command()   // 'start' (without the slash)
 $msg->commandArgs() // ['arg1', 'arg2'] from '/command arg1 arg2'
+$msg->raw()       // The full raw update array — an escape hatch for any
+                  // field not mapped above
 ```
+
+---
+
+## Editing messages safely
+
+```php
+// Standard edit — throws TelegramApiException if Telegram rejects it
+// (e.g. "message is not modified", or editing a media message's caption).
+$ctx->editReply('Updated text.');
+
+// Safe edit — swallows "message is not modified", and automatically edits
+// the caption instead of the text when the target message is a photo/video/
+// document/etc, since editMessageText can't touch a caption.
+$ctx->editReplySafe('Updated text.');
+
+// Strip the inline keyboard from the current callback message.
+$ctx->removeKeyboard();
+```
+
+Use `editReplySafe()` for callback-driven panels where a "Refresh" button might produce identical content — the plain `editReply()` would throw in that case.
 
 ---
 

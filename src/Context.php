@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot;
 
 use Devflow\TelegramBot\Api\TelegramApi;
+use Devflow\TelegramBot\Exceptions\TelegramApiException;
 use Devflow\TelegramBot\Support\Lang;
 use Devflow\TelegramBot\Types\CallbackQuery;
 use Devflow\TelegramBot\Types\Message;
@@ -133,6 +134,70 @@ class Context
             return $this->reply($text, $options);
         }
         return $this->api->editMessageText($this->chatId(), $messageId, $text, $options);
+    }
+
+    /**
+     * Like editReply(), but swallows Telegram's "message is not modified"
+     * error (returns null instead of throwing) and auto-falls back to
+     * editMessageCaption() when the target message is media, since
+     * editMessageText can't touch a caption.
+     */
+    public function editReplySafe(string $text, array $options = []): ?Message
+    {
+        $messageId = $this->update->callbackQuery?->message?->messageId;
+        if ($messageId === null) {
+            return $this->reply($text, $options);
+        }
+
+        $target = $this->update->callbackQuery?->message;
+
+        try {
+            if ($target !== null && $this->isMediaMessage($target)) {
+                return $this->api->editMessageCaption($this->chatId(), $messageId, $text, $options);
+            }
+            return $this->api->editMessageText($this->chatId(), $messageId, $text, $options);
+        } catch (TelegramApiException $e) {
+            if ($this->isNotModifiedError($e)) {
+                return null;
+            }
+            throw $e;
+        }
+    }
+
+    /** Strip the inline keyboard from the current callback message. Swallows "not modified". */
+    public function removeKeyboard(): bool
+    {
+        $messageId = $this->update->callbackQuery?->message?->messageId ?? $this->message()?->messageId;
+        if ($messageId === null) {
+            return false;
+        }
+
+        try {
+            $this->api->editMessageReplyMarkup($this->chatId(), $messageId, ['inline_keyboard' => []]);
+            return true;
+        } catch (TelegramApiException $e) {
+            if ($this->isNotModifiedError($e)) {
+                return false;
+            }
+            throw $e;
+        }
+    }
+
+    private function isMediaMessage(Message $message): bool
+    {
+        return $message->photo !== null
+            || $message->video !== null
+            || $message->audio !== null
+            || $message->document !== null
+            || $message->voice !== null
+            || $message->sticker !== null
+            || $message->animation !== null
+            || $message->videoNote !== null;
+    }
+
+    private function isNotModifiedError(TelegramApiException $e): bool
+    {
+        return str_contains(strtolower($e->getMessage()), 'message is not modified');
     }
 
     public function deleteCurrentMessage(): bool

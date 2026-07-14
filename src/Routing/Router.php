@@ -5,6 +5,7 @@ namespace Devflow\TelegramBot\Routing;
 use Devflow\TelegramBot\Api\TelegramApi;
 use Devflow\TelegramBot\Context;
 use Devflow\TelegramBot\Handlers\HandlerInterface;
+use Devflow\TelegramBot\Support\Log;
 use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\Update;
 
@@ -26,6 +27,7 @@ class Router
     public function dispatch(Update $update, TelegramApi $api, array $config = [], ?object $userRepository = null): void
     {
         $ctx = null;
+        $debug = $config['debug'] ?? false;
 
         foreach ($this->routes as $route) {
             // Non-step routes: check without context first (cheap)
@@ -46,8 +48,16 @@ class Router
                 continue;
             }
 
+            if ($debug) {
+                Log::save("Route matched: {$route->type} \"{$route->pattern}\" (update #{$update->updateId})", 'DEBUG');
+            }
+
             $this->runWithMiddleware($ctx, $route->handler);
             return;
+        }
+
+        if ($debug) {
+            Log::save("No route matched update #{$update->updateId} (type: {$update->type()})", 'DEBUG');
         }
     }
 
@@ -55,6 +65,7 @@ class Router
     {
         return match ($route->type) {
             'command'             => $this->matchesCommand($route->pattern, $update),
+            'unknown_command'     => $this->matchesUnknownCommand($update),
             'text'                => $update->message?->text !== null && !$update->message->isCommand(),
             'message'             => $update->message !== null,
             'edited_message'      => $update->editedMessage !== null,
@@ -97,6 +108,37 @@ class Router
             return true;
         }
         return $update->message->command() === ltrim($command, '/');
+    }
+
+    /**
+     * Matches a command that isn't handled by any registered onCommand()
+     * route — computed against the full set of registered command names
+     * regardless of registration order, so (unlike an onMessage catch-all)
+     * where you register onUnknownCommand() relative to onCommand() calls
+     * doesn't silently change behavior.
+     */
+    private function matchesUnknownCommand(Update $update): bool
+    {
+        if ($update->message === null || !$update->message->isCommand()) {
+            return false;
+        }
+
+        $command = $update->message->command();
+
+        return $command !== null && !in_array($command, $this->registeredCommandNames(), true);
+    }
+
+    private function registeredCommandNames(): array
+    {
+        $names = [];
+
+        foreach ($this->routes as $route) {
+            if ($route->type === 'command' && $route->pattern !== '*') {
+                $names[] = ltrim($route->pattern, '/');
+            }
+        }
+
+        return $names;
     }
 
     private function matchesStep(Route $route, Update $update, Context $ctx): bool

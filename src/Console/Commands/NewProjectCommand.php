@@ -36,10 +36,9 @@ class NewProjectCommand
         echo "  \033[33m5.\033[0m When adding new classes, run: composer dump-autoload\n";
         echo "\n";
         echo "  Database setup (required — used for auto-registration and admin panel):\n";
-        echo "  \033[33m6.\033[0m Import each SQL file from \033[36mdatabase/migrations/\033[0m into your MySQL/MariaDB database\n";
-        echo "     (phpMyAdmin: select your DB → Import → choose each .sql file)\n";
-        echo "     CLI: mysql -u root my_bot < database/migrations/telegram_users.sql\n";
-        echo "  \033[33m7.\033[0m Fill in DB_ credentials in .env  (\033[36mDB_DRIVER=mariadb\033[0m for MariaDB)\n";
+        echo "  \033[33m6.\033[0m Fill in DB_ credentials in .env  (\033[36mDB_DRIVER=mariadb\033[0m for MariaDB)\n";
+        echo "  \033[33m7.\033[0m Run \033[36mvendor/bin/devflow migrate\033[0m to create the database tables\n";
+        echo "     (add your own tables/columns as new files in \033[36mdatabase/migrations/\033[0m — see docs/06-database.md)\n";
         echo "\n";
         echo "  Optional:\n";
         echo "  \033[33m•\033[0m Local dev (no webhook needed): \033[36mvendor/bin/devflow poll\033[0m\n";
@@ -56,6 +55,7 @@ class NewProjectCommand
             'app/Middleware',
             'app/Flows',
             'app/Handlers',
+            'app/Models',
             'app/Texts',
             'app/Services',
             'bootstrap',
@@ -90,16 +90,20 @@ class NewProjectCommand
             'app/Middleware/AuthMiddleware.php'         => $this->authMiddleware(),
             'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
             'app/Handlers/AdminHandlers.php'            => $this->adminHandlers(),
+            'app/Models/User.php'                       => $this->userModel(),
             'app/Texts/WelcomeText.php'                 => $this->welcomeText(),
             'lang/en.php'                                => $this->langEn(),
             'lang/fa.php'                                => $this->langFa(),
-            'database/migrations/telegram_users.sql'    => $this->migrationTelegramUsers(),
-            'database/migrations/bot_settings.sql'      => $this->migrationBotSettings(),
-            'database/migrations/telegram_broadcasts.sql' => $this->migrationBroadcasts(),
             'logs/.gitignore'                           => "*.log\n",
             'app/Callbacks/.gitkeep'                    => '',
             'app/Flows/.gitkeep'                        => '',
             'app/Services/.gitkeep'                     => '',
+            // database/migrations/ starts empty — the base tables
+            // (telegram_users, bot_settings, telegram_broadcasts) ship as
+            // migrations bundled with the package itself; `devflow migrate`
+            // picks those up automatically. Add your own project-specific
+            // migrations here (see docs/06-database.md).
+            'database/migrations/.gitkeep'               => '',
         ];
 
         foreach ($files as $relative => $content) {
@@ -231,11 +235,8 @@ class NewProjectCommand
         // ─── Database ──────────────────────────────────────────────────────────
         // Required for auto-registration, $ctx->user(), banning, rate limiting.
         // Setup:
-        //   1. Import each SQL file from database/migrations/ into MySQL/MariaDB
-        //      phpMyAdmin: select DB → Import → choose .sql file
-        //      CLI: mysql -u root my_bot < database/migrations/telegram_users.sql
-        //   2. Fill in DB_ credentials in .env
-        //   MariaDB: set DB_DRIVER=mariadb in .env
+        //   1. Fill in DB_ credentials in .env (MariaDB: set DB_DRIVER=mariadb)
+        //   2. Run: vendor/bin/devflow migrate
         $capsule = new Capsule;
         $capsule->addConnection([
             'driver'    => env('DB_DRIVER', 'mysql'),
@@ -263,6 +264,9 @@ class NewProjectCommand
             'proxy'          => env('PROXY_URL') ?: null,
             'lang_path'      => __DIR__ . '/../lang',
             'default_locale' => 'en',
+            // Point at your own model (see app/Models/User.php) to add
+            // columns/relationships/scopes on top of the base TelegramUser.
+            'user_model'     => \App\Models\User::class,
         ]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
@@ -438,9 +442,9 @@ class NewProjectCommand
 
         namespace App\Handlers;
 
+        use App\Models\User;
         use Devflow\TelegramBot\Bot;
         use Devflow\TelegramBot\Context;
-        use Devflow\TelegramBot\Database\Models\TelegramUser;
 
         class UserHandlers
         {
@@ -456,7 +460,7 @@ class NewProjectCommand
                             ? 'superadmin'
                             : 'user';
 
-                        $user = TelegramUser::create([
+                        $user = User::create([
                             'telegram_id'   => $ctx->userId(),
                             'chat_id'       => $ctx->chatId(),
                             'first_name'    => $ctx->from()?->firstName ?? '',
@@ -507,9 +511,9 @@ class NewProjectCommand
 
         namespace App\Handlers;
 
+        use App\Models\User;
         use Devflow\TelegramBot\Bot;
         use Devflow\TelegramBot\Context;
-        use Devflow\TelegramBot\Database\Models\TelegramUser;
 
         class AdminHandlers
         {
@@ -538,9 +542,9 @@ class NewProjectCommand
                         return;
                     }
 
-                    $total  = TelegramUser::count();
-                    $today  = TelegramUser::whereDate('last_activity_at', date('Y-m-d'))->count();
-                    $banned = TelegramUser::where('is_banned', true)->count();
+                    $total  = User::count();
+                    $today  = User::whereDate('last_activity_at', date('Y-m-d'))->count();
+                    $banned = User::where('is_banned', true)->count();
 
                     try {
                         $me       = Bot::getMe();
@@ -561,6 +565,28 @@ class NewProjectCommand
                     );
                 });
             }
+        }
+        PHP;
+    }
+
+    private function userModel(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        namespace App\Models;
+
+        use Devflow\TelegramBot\Database\Models\TelegramUser;
+
+        /**
+         * Extension point for your own columns/relationships/scopes on top of
+         * the library's telegram_users table. Wired in via the `user_model`
+         * config key in bootstrap/app.php, so $ctx->user() and
+         * TelegramUser::firstOrCreate() (used for auto-registration) both
+         * return instances of this class instead of the base model.
+         */
+        class User extends TelegramUser
+        {
         }
         PHP;
     }
@@ -617,85 +643,6 @@ class NewProjectCommand
             ],
         ];
         PHP;
-    }
-
-    private function migrationTelegramUsers(): string
-    {
-        return <<<'SQL'
-        CREATE TABLE IF NOT EXISTS `telegram_users` (
-            `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `telegram_id`      BIGINT UNSIGNED NOT NULL,
-            `chat_id`          BIGINT          NOT NULL,
-            `first_name`       VARCHAR(255)    NOT NULL,
-            `last_name`        VARCHAR(255)    NULL,
-            `username`         VARCHAR(255)    NULL,
-            `language_code`    VARCHAR(10)     NULL,
-            `language`         VARCHAR(10)     NULL,
-            `role`             VARCHAR(50)     NOT NULL DEFAULT 'user',
-            `permissions`      JSON            NULL,
-            `is_banned`        TINYINT(1)      NOT NULL DEFAULT 0,
-            `ban_reason`       TEXT            NULL,
-            `banned_at`        TIMESTAMP       NULL,
-            `is_active`        TINYINT(1)      NOT NULL DEFAULT 1,
-            `step`             VARCHAR(255)    NULL,
-            `temp_data`        JSON            NULL,
-            `rate_hits`        JSON            NULL,
-            `current_panel`    VARCHAR(20)     NOT NULL DEFAULT 'user',
-            `referral_code`    VARCHAR(32)     NULL,
-            `invited_by`       BIGINT UNSIGNED NULL,
-            `joined_at`        TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `last_activity_at` TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `telegram_users_telegram_id_unique` (`telegram_id`),
-            UNIQUE KEY `telegram_users_referral_code_unique` (`referral_code`),
-            KEY `telegram_users_invited_by_foreign` (`invited_by`),
-            CONSTRAINT `telegram_users_invited_by_foreign`
-                FOREIGN KEY (`invited_by`) REFERENCES `telegram_users` (`id`)
-                ON DELETE SET NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        SQL;
-    }
-
-    private function migrationBotSettings(): string
-    {
-        return <<<'SQL'
-        CREATE TABLE IF NOT EXISTS `bot_settings` (
-            `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `key`        VARCHAR(255) NOT NULL,
-            `value`      TEXT         NULL,
-            `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `updated_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `bot_settings_key_unique` (`key`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        SQL;
-    }
-
-    private function migrationBroadcasts(): string
-    {
-        return <<<'SQL'
-        CREATE TABLE IF NOT EXISTS `telegram_broadcasts` (
-            `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `message`          TEXT            NOT NULL,
-            `type`             VARCHAR(50)     NOT NULL DEFAULT 'text',
-            `options`          JSON            NULL,
-            `status`           ENUM('pending','running','completed','failed') NOT NULL DEFAULT 'pending',
-            `total_recipients` INT UNSIGNED    NOT NULL DEFAULT 0,
-            `sent_count`       INT UNSIGNED    NOT NULL DEFAULT 0,
-            `failed_count`     INT UNSIGNED    NOT NULL DEFAULT 0,
-            `scheduled_at`     TIMESTAMP       NULL,
-            `started_at`       TIMESTAMP       NULL,
-            `completed_at`     TIMESTAMP       NULL,
-            `created_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `updated_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-            PRIMARY KEY (`id`),
-            KEY `telegram_broadcasts_status_index` (`status`),
-            KEY `telegram_broadcasts_scheduled_at_index` (`scheduled_at`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        SQL;
     }
 
     private function info(string $msg): void

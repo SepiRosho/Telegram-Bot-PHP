@@ -170,6 +170,30 @@ Hit timestamps are stored in the `rate_hits` JSON column on the `telegram_users`
 
 ---
 
+## Example 5: Force-join gate
+
+The classic "join our channel(s) first" pattern, ready-made. It checks membership via `getChatMember`, caches the result (TTL-based, in `bot_settings`) so it doesn't cost one API call per channel on every single update, and builds the join-prompt keyboard for you.
+
+**Requirements:** Database must be active (uses `bot_settings` for the membership cache).
+
+```php
+use Devflow\TelegramBot\Middleware\ForceJoinMiddleware;
+
+$forceJoin = new ForceJoinMiddleware(
+    channels: ['@my_channel', '@my_group'],
+    cacheTtl: 60, // seconds a "joined"/"not joined" result is trusted before re-checking
+);
+
+Bot::use($forceJoin);
+
+// The "✅ I've joined" button on the prompt sends this callback data by default.
+Bot::onCallbackQuery('force_join_verify', $forceJoin->verifyCallback());
+```
+
+A user who hasn't joined every listed channel gets a message with a join link per channel plus a verify button; everyone else passes through untouched. Channels can be `@username` or a full `https://t.me/...` URL (e.g. for private channel invite links).
+
+---
+
 ## Generating a middleware
 
 ```bash

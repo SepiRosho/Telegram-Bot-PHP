@@ -37,27 +37,45 @@ mysql -u root -p -e "CREATE DATABASE my_bot CHARACTER SET utf8mb4 COLLATE utf8mb
 
 ---
 
-## Step 2: Import the SQL migrations
-
-The SQL files are inside the library, under `vendor/devflow/telegram-bot/database/migrations/`.
-
-### Option A — phpMyAdmin
-
-1. Select your `my_bot` database in the left sidebar
-2. Click the **Import** tab at the top
-3. Click **Choose File** and select `vendor/devflow/telegram-bot/database/migrations/telegram_users.sql`
-4. Click **Go**
-5. Repeat for `bot_settings.sql` and `telegram_broadcasts.sql`
-
-### Option B — Command line
+## Step 2: Run the migrations
 
 ```bash
-mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/telegram_users.sql
-mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/bot_settings.sql
-mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/telegram_broadcasts.sql
+vendor/bin/devflow migrate
 ```
 
-After this you should have three tables in your database.
+This creates the three base tables (`telegram_users`, `bot_settings`, `telegram_broadcasts`) from migrations bundled with the library, plus anything you've added under your own project's `database/migrations/` (see below). It's safe to re-run — already-applied migrations are tracked in a `migrations` table and skipped. `vendor/bin/devflow migrate:status` shows what has and hasn't run yet.
+
+### Adding your own tables/columns
+
+Drop a new PHP file into `database/migrations/`, named so it sorts after the bundled ones (e.g. `2026_01_01_000000_add_something_to_telegram_users.php`):
+
+```php
+<?php
+
+use Illuminate\Database\Capsule\Manager as Capsule;
+
+return new class {
+    public function up(): void
+    {
+        Capsule::schema()->table('telegram_users', function ($table) {
+            $table->string('anon_token')->nullable();
+        });
+    }
+
+    public function down(): void
+    {
+        Capsule::schema()->table('telegram_users', function ($table) {
+            $table->dropColumn('anon_token');
+        });
+    }
+};
+```
+
+Then run `vendor/bin/devflow migrate` again.
+
+### Legacy: importing the raw SQL by hand
+
+If you'd rather not use the migration runner, the equivalent `.sql` files still ship under `vendor/devflow/telegram-bot/database/migrations/*.sql` and can be imported directly (phpMyAdmin's Import tab, or `mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/telegram_users.sql`). Note this path won't track schema changes across library upgrades the way `devflow migrate` does.
 
 ---
 
@@ -177,6 +195,37 @@ $user->referral_code    // the user's unique referral code
 $user->inviter          // the TelegramUser who referred them (or null)
 $user->referrals        // collection of users referred by this user
 ```
+
+Only the `id` column is guarded — every other column, including custom ones your own migrations add, is mass-assignable via `TelegramUser::create([...])` or `$user->update([...])` with no extra config.
+
+### Adding your own columns/relationships
+
+`app/Models/User.php` (scaffolded by `devflow new`) extends `TelegramUser` and is wired in via the `user_model` config key in `bootstrap/app.php`:
+
+```php
+// app/Models/User.php
+namespace App\Models;
+
+use Devflow\TelegramBot\Database\Models\TelegramUser;
+
+class User extends TelegramUser
+{
+    public function orders(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Order::class);
+    }
+}
+```
+
+```php
+// bootstrap/app.php
+Bot::init(env('BOT_TOKEN'), [
+    'database'   => true,
+    'user_model' => \App\Models\User::class,
+]);
+```
+
+Once configured, `$ctx->user()` and auto-registration on first `/start` both return instances of your subclass instead of the base `TelegramUser`.
 
 ## Working with BotSetting
 

@@ -9,17 +9,21 @@ use Devflow\TelegramBot\Console\Commands\MakeHandlerCommand;
 use Devflow\TelegramBot\Console\Commands\MakeMiddlewareCommand;
 use Devflow\TelegramBot\Console\Commands\MakeServiceCommand;
 use Devflow\TelegramBot\Console\Commands\MakeTextCommand;
+use Devflow\TelegramBot\Console\Commands\MigrateCommand;
+use Devflow\TelegramBot\Console\Commands\MigrateStatusCommand;
 use Devflow\TelegramBot\Console\Commands\NewProjectCommand;
 use Devflow\TelegramBot\Console\Commands\PollCommand;
 
 class Application
 {
-    private const VERSION = '1.7.0';
+    private const VERSION = '1.8.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
         'poll'              => PollCommand::class,
         'broadcast:run'     => BroadcastRunCommand::class,
+        'migrate'           => MigrateCommand::class,
+        'migrate:status'    => MigrateStatusCommand::class,
         'make:command'      => MakeHandlerCommand::class,
         'make:callback'     => MakeCallbackCommand::class,
         'make:middleware'   => MakeMiddlewareCommand::class,
@@ -69,6 +73,8 @@ class Application
   \033[33mRuntime commands (run inside your project):\033[0m
     \033[32mpoll\033[0m                          Start long-polling mode (local dev, no webhook)
     \033[32mbroadcast:run\033[0m                 Process pending broadcasts from the DB queue
+    \033[32mmigrate\033[0m                       Run pending database migrations
+    \033[32mmigrate:status\033[0m                Show which migrations have run
 
   \033[33mCode generators (run inside your project):\033[0m
     \033[32mmake:command\033[0m <ClassName>      Generate a command handler  (app/Commands/)
@@ -81,6 +87,7 @@ class Application
   \033[33mExamples:\033[0m
     vendor/bin/devflow new my-telegram-bot
     vendor/bin/devflow poll
+    vendor/bin/devflow migrate
     vendor/bin/devflow broadcast:run
     vendor/bin/devflow make:command HelpCommand
     vendor/bin/devflow make:middleware RateLimitMiddleware

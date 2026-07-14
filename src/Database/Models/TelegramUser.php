@@ -34,29 +34,11 @@ class TelegramUser extends Model
 
     public $timestamps = false;
 
-    protected $fillable = [
-        'telegram_id',
-        'chat_id',
-        'first_name',
-        'last_name',
-        'username',
-        'language_code',
-        'language',
-        'role',
-        'permissions',
-        'is_banned',
-        'ban_reason',
-        'banned_at',
-        'is_active',
-        'step',
-        'temp_data',
-        'referral_code',
-        'invited_by',
-        'joined_at',
-        'last_activity_at',
-        'rate_hits',
-        'current_panel',
-    ];
+    // Guard only the primary key — any other column (including custom ones
+    // added by your own migrations) is mass-assignable via create()/update().
+    // Extend this class (and point the `user_model` config key at your
+    // subclass) if you want a stricter allowlist for your own project.
+    protected $guarded = ['id'];
 
     protected $casts = [
         'permissions' => 'array',

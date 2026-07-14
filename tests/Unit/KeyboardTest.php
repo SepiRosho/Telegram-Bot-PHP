@@ -40,7 +40,7 @@ class KeyboardTest extends TestCase
 
         $this->assertArrayHasKey('keyboard', $markup);
         $this->assertTrue($markup['resize_keyboard']);
-        $this->assertSame([['Button A', 'Button B']], $markup['keyboard']);
+        $this->assertSame([[['text' => 'Button A'], ['text' => 'Button B']]], $markup['keyboard']);
     }
 
     public function test_reply_keyboard_one_time_flag(): void

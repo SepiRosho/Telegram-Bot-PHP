@@ -48,6 +48,34 @@ $ctx->setTemp('key', $value)  // Store a temporary value for later steps.
 
 ---
 
+## Steps that accept media
+
+The manual `onText` + `match($ctx->step())` pattern above only ever sees text messages — a photo, voice note, or any other non-text message sent mid-flow silently falls through untouched. `Bot::onStep()` is the router-native alternative, and it can match specific message types:
+
+```php
+// Only matches text (the default — same behavior as before).
+Bot::onStep('register.ask_name', function (Context $ctx) {
+    // ...
+});
+
+// Matches text OR a photo while the user is in this step.
+Bot::onStep('anon.compose', function (Context $ctx) {
+    if ($ctx->message()->photo !== null) {
+        // forward/copy the photo into the anonymous message flow
+    } else {
+        // handle the text case
+    }
+    $ctx->clearFlow();
+}, types: ['text', 'photo']);
+
+// Matches any message type at all.
+Bot::onStep('support.attach_file', $handler, types: ['*']);
+```
+
+Supported `types` values: `text`, `photo`, `document`, `audio`, `video`, `voice`, `video_note`, `sticker`, `animation`, `contact`, `location`, `venue`, `dice`, or `*` for any. `onStep()` routes are still checked in registration order alongside your other routes — a `types`-restricted step route simply won't match a message type it wasn't given.
+
+---
+
 ## A complete registration flow
 
 ### Using a Flow class (recommended for longer flows)

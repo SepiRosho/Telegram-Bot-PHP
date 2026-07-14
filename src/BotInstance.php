@@ -238,6 +238,13 @@ class BotInstance
         return $this;
     }
 
+    /** Fires for any command not handled by a registered onCommand() route. */
+    public function onUnknownCommand(callable|string $handler): static
+    {
+        $this->router->addRoute('unknown_command', '*', $handler);
+        return $this;
+    }
+
     public function loadHandlers(array|string $handlers): static
     {
         foreach ((array) $handlers as $handlerClass) {
@@ -282,7 +289,7 @@ class BotInstance
 
         $userRepository = null;
         if ($this->config['database'] ?? false) {
-            $userRepository = new \Devflow\TelegramBot\Database\UserRepository();
+            $userRepository = new \Devflow\TelegramBot\Database\UserRepository($this->config);
         }
 
         $this->router->dispatch($update, $this->api, $this->config, $userRepository);
@@ -293,7 +300,7 @@ class BotInstance
         $offset = 0;
         $userRepository = null;
         if ($this->config['database'] ?? false) {
-            $userRepository = new \Devflow\TelegramBot\Database\UserRepository();
+            $userRepository = new \Devflow\TelegramBot\Database\UserRepository($this->config);
         }
 
         while (true) {

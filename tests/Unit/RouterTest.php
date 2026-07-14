@@ -18,6 +18,12 @@ class RouterTest extends TestCase
 
     private function messageUpdate(string $text, int $updateId = 1): Update
     {
+        $entities = [];
+        if (str_starts_with($text, '/')) {
+            $length = strpos($text, ' ');
+            $entities[] = ['type' => 'bot_command', 'offset' => 0, 'length' => $length === false ? strlen($text) : $length];
+        }
+
         return Update::fromArray([
             'update_id' => $updateId,
             'message'   => [
@@ -26,6 +32,7 @@ class RouterTest extends TestCase
                 'chat'       => ['id' => 100, 'type' => 'private'],
                 'from'       => ['id' => 200, 'is_bot' => false, 'first_name' => 'Ali'],
                 'text'       => $text,
+                'entities'   => $entities,
             ],
         ]);
     }
@@ -232,5 +239,45 @@ class RouterTest extends TestCase
         $router->dispatch($this->photoUpdate(), $this->makeApi(), [], $this->fakeUserRepository('compose'));
 
         $this->assertTrue($called);
+    }
+
+    public function test_unknown_command_route_does_not_match_a_registered_command(): void
+    {
+        $router = new Router();
+        $unknownCalled = false;
+        $router->addRoute('unknown_command', '*', function () use (&$unknownCalled) { $unknownCalled = true; });
+        $router->addRoute('command', 'start', function () {});
+
+        $router->dispatch($this->messageUpdate('/start'), $this->makeApi());
+
+        $this->assertFalse($unknownCalled);
+    }
+
+    public function test_unknown_command_route_matches_an_unregistered_command(): void
+    {
+        $router = new Router();
+        $unknownCalled = false;
+        $router->addRoute('unknown_command', '*', function () use (&$unknownCalled) { $unknownCalled = true; });
+        $router->addRoute('command', 'start', function () {});
+
+        $router->dispatch($this->messageUpdate('/mystery'), $this->makeApi());
+
+        $this->assertTrue($unknownCalled);
+    }
+
+    public function test_unknown_command_matching_is_independent_of_registration_order(): void
+    {
+        // onUnknownCommand registered BEFORE the specific command route —
+        // should still not fire for /start, unlike an onMessage catch-all.
+        $router = new Router();
+        $unknownCalled = false;
+        $startCalled = false;
+        $router->addRoute('unknown_command', '*', function () use (&$unknownCalled) { $unknownCalled = true; });
+        $router->addRoute('command', 'start', function () use (&$startCalled) { $startCalled = true; });
+
+        $router->dispatch($this->messageUpdate('/start'), $this->makeApi());
+
+        $this->assertFalse($unknownCalled);
+        $this->assertTrue($startCalled);
     }
 }
