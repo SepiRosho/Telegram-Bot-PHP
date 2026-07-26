@@ -32,5 +32,6 @@ desktop.ini
 
 # AI / local dev docs
 /.claude
+/graphify-out
 CLAUDE.md
 HANDOFF.md
