@@ -5,7 +5,6 @@ namespace Devflow\TelegramBot\Testing;
 use Devflow\TelegramBot\Api\FakeHttpClient;
 use Devflow\TelegramBot\BotInstance;
 use Devflow\TelegramBot\Types\Update;
-use PHPUnit\Framework\Assert;
 
 /**
  * In-memory bot for tests: wraps a BotInstance wired to a FakeHttpClient
@@ -64,17 +63,20 @@ class FakeBot
     public function assertSent(string $method, ?callable $callback = null): void
     {
         $calls = $this->http->callsTo($method);
-        Assert::assertNotEmpty($calls, "Expected [{$method}] to have been sent, but it was not.");
+        Assertions::assert($calls !== [], "Expected [{$method}] to have been sent, but it was not.");
 
         if ($callback !== null) {
             $matched = array_filter($calls, fn(array $c) => $callback($c['params']));
-            Assert::assertNotEmpty($matched, "Expected [{$method}] to have been sent matching the given condition.");
+            Assertions::assert($matched !== [], "Expected [{$method}] to have been sent matching the given condition.");
         }
     }
 
     public function assertNotSent(string $method): void
     {
-        Assert::assertEmpty($this->http->callsTo($method), "Expected [{$method}] not to have been sent, but it was.");
+        Assertions::assert(
+            $this->http->callsTo($method) === [],
+            "Expected [{$method}] not to have been sent, but it was.",
+        );
     }
 
     /** Proxy route registration (onCommand, onText, ...) straight to BotInstance. */

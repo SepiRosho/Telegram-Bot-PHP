@@ -85,6 +85,23 @@ vendor\bin\devflow make:command  BroadcastCommand
 vendor\bin\devflow make:text     WelcomeText
 ```
 
+### Running locally without a webhook
+
+`vendor/bin/devflow poll` runs your bot in long-polling mode — no HTTPS tunnel, webhook, or public URL required. It's the fastest way to develop locally. Delete any existing webhook first (Telegram only delivers one way at a time), then poll:
+
+```php
+// delete-webhook.php — one-off script
+Bot::init(env('BOT_TOKEN'));
+Bot::deleteWebhook();
+```
+
+```bash
+php delete-webhook.php
+vendor/bin/devflow poll
+```
+
+See [08 — Local Development](docs/08-local-dev.md) for tunnel-based setup (ngrok / Cloudflare Tunnel) when you specifically need to test webhook delivery instead.
+
 ---
 
 ## Quick Start (without scaffolding)
@@ -242,6 +259,21 @@ Bot::use(function (Context $ctx, callable $next) {
 });
 ```
 
+#### Per-route middleware
+
+Every `Bot::on*()` registration method also accepts an optional trailing `array $middleware = []`, scoped to that one route only, layered on top of anything registered with `Bot::use()`:
+
+```php
+Bot::onCommand('broadcast', \App\Commands\BroadcastCommand::class, [
+    \App\Middleware\AdminMiddleware::class,
+]);
+
+// Named arguments read clearly when constructing middleware inline:
+Bot::onCommand('send', $handler, middleware: [new RateLimitMiddleware(maxHits: 3)]);
+```
+
+Global middleware wraps route middleware, which wraps the handler. See [05 — Middleware](docs/05-middleware.md#per-route-middleware) for full details.
+
 #### Built-in rate limiter
 
 DB-backed rolling-window rate limiter. Requires database.
@@ -252,6 +284,8 @@ use Devflow\TelegramBot\Middleware\RateLimitMiddleware;
 Bot::use(new RateLimitMiddleware(maxHits: 10, windowSeconds: 60));
 // Optional: custom message
 Bot::use(new RateLimitMiddleware(maxHits: 5, windowSeconds: 30, message: 'Slow down!'));
+// Or a closure, so the block message can be localized via $ctx->t():
+Bot::use(new RateLimitMiddleware(maxHits: 5, windowSeconds: 30, message: fn(Context $ctx) => $ctx->t('rate_limited')));
 ```
 
 ### Localized Texts
@@ -553,10 +587,11 @@ Step-by-step documentation in [`docs/`](docs/README.md):
 - [05 — Middleware (including built-in rate limiter)](docs/05-middleware.md)
 - [06 — Database setup](docs/06-database.md)
 - [07 — Wizard flows](docs/07-flows.md)
-- [08 — Local development with ngrok](docs/08-local-dev.md)
+- [08 — Local development (`devflow poll`, ngrok, Cloudflare Tunnel, `Bot::fake()`)](docs/08-local-dev.md)
 - [09 — Localized text classes](docs/09-texts.md)
 - [10 — Handler groups](docs/10-handler-groups.md)
 - [11 — Keyboards](docs/11-keyboards.md)
+- [12 — i18n (key-based translations)](docs/12-i18n.md)
 
 ---
 

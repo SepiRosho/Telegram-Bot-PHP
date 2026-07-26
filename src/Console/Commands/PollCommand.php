@@ -3,9 +3,13 @@
 namespace Devflow\TelegramBot\Console\Commands;
 
 use Devflow\TelegramBot\Bot;
+use Devflow\TelegramBot\Console\Commands\Concerns\ReportsDatabaseErrors;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class PollCommand
 {
+    use ReportsDatabaseErrors;
+
     public function execute(array $args): void
     {
         $cwd = getcwd();
@@ -26,9 +30,20 @@ class PollCommand
         // Bootstrap registers Bot::init(), middleware, and handlers
         require $bootstrap;
 
+        // Fail fast on a bad .env instead of letting the polling loop retry
+        // against an unreachable database every 5 seconds.
+        if (Bot::getInstance()->config('database')) {
+            try {
+                Capsule::connection()->getPdo();
+            } catch (\PDOException $e) {
+                $this->failOnDatabaseError($e);
+            }
+        }
+
         $this->line('');
         $this->line("  \033[32mdevflow poll\033[0m — long-polling mode");
-        $this->line("  \033[33mNote:\033[0m delete your webhook before polling: vendor/bin/devflow webhook:delete");
+        // Telegram refuses getUpdates while a webhook is registered.
+        $this->line("  \033[33mNote:\033[0m delete your webhook first if one is set: \033[36mvendor/bin/devflow webhook:delete\033[0m");
         $this->line('  Press Ctrl+C to stop.');
         $this->line('');
 

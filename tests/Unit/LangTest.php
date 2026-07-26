@@ -70,4 +70,63 @@ class LangTest extends TestCase
         $this->assertTrue(Lang::has('en', 'welcome'));
         $this->assertFalse(Lang::has('fa', 'missing.key'));
     }
+
+    // -------------------------------------------------------------------------
+    // BCP-47 / IETF tag normalization
+    // -------------------------------------------------------------------------
+
+    public function test_region_tagged_locale_resolves_to_its_base_language(): void
+    {
+        // A real Telegram client can report fa-IR where the project only ships
+        // fa.php — this used to fall straight through to English with no error.
+        $this->assertSame('سلام، علی!', Lang::get('fa-IR', 'welcome', ['name' => 'علی']));
+    }
+
+    public function test_normalization_is_case_insensitive_and_accepts_underscores(): void
+    {
+        $this->assertSame('حساب من', Lang::get('FA_ir', 'menu.account'));
+    }
+
+    public function test_subtags_are_dropped_one_at_a_time(): void
+    {
+        file_put_contents($this->dir . '/zh-hans.php', "<?php\nreturn ['welcome' => '你好，{name}！'];\n");
+        Lang::setPath($this->dir);
+
+        $this->assertSame('你好，Ali！', Lang::get('zh-Hans-CN', 'welcome', ['name' => 'Ali']));
+
+        @unlink($this->dir . '/zh-hans.php');
+        Lang::setPath($this->dir);
+    }
+
+    public function test_an_exact_regional_file_wins_over_its_base_language(): void
+    {
+        file_put_contents($this->dir . '/pt-br.php', "<?php\nreturn ['welcome' => 'Olá, {name}!'];\n");
+        Lang::setPath($this->dir);
+
+        $this->assertSame('Olá, Ana!', Lang::get('pt-BR', 'welcome', ['name' => 'Ana']));
+
+        @unlink($this->dir . '/pt-br.php');
+        Lang::setPath($this->dir);
+    }
+
+    public function test_unknown_locale_still_falls_back_to_the_default(): void
+    {
+        $this->assertSame('Hello, Ali!', Lang::get('de-AT', 'welcome', ['name' => 'Ali']));
+    }
+
+    public function test_normalize_returns_the_most_specific_resolvable_tag(): void
+    {
+        $this->assertSame('fa', Lang::normalize('fa-IR'));
+        $this->assertSame('en', Lang::normalize('en'));
+    }
+
+    public function test_normalize_falls_back_to_the_bare_primary_subtag(): void
+    {
+        $this->assertSame('de', Lang::normalize('de-AT'));
+    }
+
+    public function test_find_key_matches_a_region_tagged_locale(): void
+    {
+        $this->assertSame('menu.account', Lang::findKey('حساب من', ['fa-IR']));
+    }
 }

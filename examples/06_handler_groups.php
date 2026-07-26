@@ -110,10 +110,14 @@ class RegistrationHandlers
 
 // ---- Load all groups --------------------------------------------------------
 
-// loadHandlers() calls ::register() on each class in order.
-// Routes are checked in registration order — first match wins.
+// loadHandlers() calls ::register() on each class in order. Routes are
+// checked in registration order — first match wins — EXCEPT onStep() routes:
+// those are always checked first while the user has an active step, no
+// matter where they're registered. So RegistrationHandlers' step routes
+// below always win over UserHandlers' onText() catch-all, regardless of
+// this list's order. Put general catch-alls last anyway, for clarity.
 Bot::loadHandlers([
-    RegistrationHandlers::class, // step routes registered first
+    RegistrationHandlers::class,
     UserHandlers::class,
     AdminHandlers::class,
 ]);

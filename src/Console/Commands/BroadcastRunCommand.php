@@ -3,11 +3,14 @@
 namespace Devflow\TelegramBot\Console\Commands;
 
 use Devflow\TelegramBot\Bot;
+use Devflow\TelegramBot\Console\Commands\Concerns\ReportsDatabaseErrors;
 use Devflow\TelegramBot\Database\Models\Broadcast;
 use Devflow\TelegramBot\Database\Models\TelegramUser;
 
 class BroadcastRunCommand
 {
+    use ReportsDatabaseErrors;
+
     public function execute(array $args): void
     {
         $cwd = getcwd();
@@ -30,17 +33,21 @@ class BroadcastRunCommand
         $ratePerSecond = max(1, min(30, (int) ($_ENV['BROADCAST_RATE'] ?? $_SERVER['BROADCAST_RATE'] ?? getenv('BROADCAST_RATE') ?: 25)));
         $sleepMicroseconds = (int) (1_000_000 / $ratePerSecond);
 
-        $pending = Broadcast::where('status', 'pending')->orderBy('id')->get();
+        try {
+            $pending = Broadcast::where('status', 'pending')->orderBy('id')->get();
 
-        if ($pending->isEmpty()) {
-            $this->line('No pending broadcasts found.');
-            return;
-        }
+            if ($pending->isEmpty()) {
+                $this->line('No pending broadcasts found.');
+                return;
+            }
 
-        $this->line("Found {$pending->count()} pending broadcast(s). Rate: {$ratePerSecond} msg/s.\n");
+            $this->line("Found {$pending->count()} pending broadcast(s). Rate: {$ratePerSecond} msg/s.\n");
 
-        foreach ($pending as $broadcast) {
-            $this->processBroadcast($broadcast, $sleepMicroseconds);
+            foreach ($pending as $broadcast) {
+                $this->processBroadcast($broadcast, $sleepMicroseconds);
+            }
+        } catch (\PDOException $e) {
+            $this->failOnDatabaseError($e);
         }
     }
 

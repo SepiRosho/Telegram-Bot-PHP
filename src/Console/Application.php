@@ -13,10 +13,11 @@ use Devflow\TelegramBot\Console\Commands\MigrateCommand;
 use Devflow\TelegramBot\Console\Commands\MigrateStatusCommand;
 use Devflow\TelegramBot\Console\Commands\NewProjectCommand;
 use Devflow\TelegramBot\Console\Commands\PollCommand;
+use Devflow\TelegramBot\Console\Commands\WebhookCommand;
 
 class Application
 {
-    private const VERSION = '1.9.1';
+    private const VERSION = '1.10.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
@@ -24,6 +25,9 @@ class Application
         'broadcast:run'     => BroadcastRunCommand::class,
         'migrate'           => MigrateCommand::class,
         'migrate:status'    => MigrateStatusCommand::class,
+        'webhook:set'       => WebhookCommand::class,
+        'webhook:delete'    => WebhookCommand::class,
+        'webhook:info'      => WebhookCommand::class,
         'make:command'      => MakeHandlerCommand::class,
         'make:callback'     => MakeCallbackCommand::class,
         'make:middleware'   => MakeMiddlewareCommand::class,
@@ -54,7 +58,14 @@ class Application
             exit(1);
         }
 
-        (new $this->commands[$command]())->execute($args);
+        $class = $this->commands[$command];
+
+        // The three webhook:* names share one class, distinguished by action.
+        $instance = $class === WebhookCommand::class
+            ? new WebhookCommand(explode(':', $command)[1])
+            : new $class();
+
+        $instance->execute($args);
     }
 
     private function showHelp(): void
@@ -75,6 +86,9 @@ class Application
     \033[32mbroadcast:run\033[0m                 Process pending broadcasts from the DB queue
     \033[32mmigrate\033[0m                       Run pending database migrations
     \033[32mmigrate:status\033[0m                Show which migrations have run
+    \033[32mwebhook:set\033[0m <https-url>       Register your webhook URL with Telegram
+    \033[32mwebhook:delete\033[0m                Remove the webhook (required before polling)
+    \033[32mwebhook:info\033[0m                  Show the currently registered webhook
 
   \033[33mCode generators (run inside your project):\033[0m
     \033[32mmake:command\033[0m <ClassName>      Generate a command handler  (app/Commands/)
@@ -87,6 +101,7 @@ class Application
   \033[33mExamples:\033[0m
     vendor/bin/devflow new my-telegram-bot
     vendor/bin/devflow poll
+    vendor/bin/devflow webhook:set https://example.com/public/webhook.php
     vendor/bin/devflow migrate
     vendor/bin/devflow broadcast:run
     vendor/bin/devflow make:command HelpCommand

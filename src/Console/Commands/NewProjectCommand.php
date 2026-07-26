@@ -56,7 +56,6 @@ class NewProjectCommand
             'app/Flows',
             'app/Handlers',
             'app/Models',
-            'app/Texts',
             'app/Services',
             'bootstrap',
             'config',
@@ -91,7 +90,6 @@ class NewProjectCommand
             'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
             'app/Handlers/AdminHandlers.php'            => $this->adminHandlers(),
             'app/Models/User.php'                       => $this->userModel(),
-            'app/Texts/WelcomeText.php'                 => $this->welcomeText(),
             'lang/en.php'                                => $this->langEn(),
             'lang/fa.php'                                => $this->langFa(),
             'logs/.gitignore'                           => "*.log\n",
@@ -353,11 +351,7 @@ class NewProjectCommand
         {
             public function handle(Context $ctx): void
             {
-                $ctx->reply(
-                    "Available commands:\n" .
-                    "/start — Start the bot\n" .
-                    "/help  — Show this message"
-                );
+                $ctx->reply($ctx->t('help'));
             }
         }
         PHP;
@@ -378,7 +372,7 @@ class NewProjectCommand
             public function handle(Context $ctx, callable $next): void
             {
                 if ($ctx->user()?->is_banned) {
-                    $ctx->reply('You are banned from using this bot.');
+                    $ctx->reply($ctx->t('banned'));
                     return;
                 }
 
@@ -475,9 +469,9 @@ class NewProjectCommand
                     $user->update(['current_panel' => 'user']);
                     $name = $ctx->from()?->firstName ?? 'there';
 
-                    $ctx->reply("👋 Hello, {$name}! Welcome to the bot.", [
+                    $ctx->reply($ctx->t('welcome', ['name' => $name]), [
                         'reply_markup' => \Devflow\TelegramBot\Support\Keyboard::reply([
-                            ['📋 My Account'],
+                            [$ctx->t('menu.account'), $ctx->t('menu.help')],
                         ]),
                     ]);
                 });
@@ -486,9 +480,9 @@ class NewProjectCommand
                 Bot::onCommand('user', function (Context $ctx) {
                     $ctx->user()?->update(['current_panel' => 'user']);
 
-                    $ctx->reply('👤 User panel.', [
+                    $ctx->reply($ctx->t('user_panel'), [
                         'reply_markup' => \Devflow\TelegramBot\Support\Keyboard::reply([
-                            ['📋 My Account'],
+                            [$ctx->t('menu.account'), $ctx->t('menu.help')],
                         ]),
                     ]);
                 });
@@ -497,7 +491,16 @@ class NewProjectCommand
 
                 // ─── Fallback ─────────────────────────────────────────────────────
                 Bot::onText(function (Context $ctx) {
-                    $ctx->reply('You said: ' . $ctx->text());
+                    // Reply-keyboard buttons arrive as plain text in whatever
+                    // locale rendered them, so match the label back to its key
+                    // rather than comparing against one language's string.
+                    $key = \Devflow\TelegramBot\Support\Lang::findKey((string) $ctx->text(), ['en', 'fa']);
+
+                    match ($key) {
+                        'menu.help'    => $ctx->reply($ctx->t('help')),
+                        'menu.account' => $ctx->reply($ctx->t('user_panel')),
+                        default        => $ctx->reply($ctx->t('echo', ['text' => $ctx->text()])),
+                    };
                 });
             }
         }
@@ -528,9 +531,9 @@ class NewProjectCommand
                     $ctx->user()->update(['current_panel' => 'admin']);
                     $name = $ctx->from()?->firstName ?? 'Admin';
 
-                    $ctx->reply("🔧 Admin panel, {$name}.", [
+                    $ctx->reply($ctx->t('admin.panel', ['name' => $name]), [
                         'reply_markup' => \Devflow\TelegramBot\Support\Keyboard::inline([
-                            [\Devflow\TelegramBot\Support\Keyboard::button('📊 Bot Status', 'bot_status')],
+                            [\Devflow\TelegramBot\Support\Keyboard::button($ctx->t('admin.bot_status_button'), 'bot_status')],
                         ]),
                     ]);
                 });
@@ -538,7 +541,7 @@ class NewProjectCommand
                 // ─── Bot Status ───────────────────────────────────────────────────
                 Bot::onCallbackQuery('bot_status', function (Context $ctx) {
                     if (!$ctx->user()?->isAdmin()) {
-                        $ctx->answerCallback('Access denied.', true);
+                        $ctx->answerCallback($ctx->t('admin.access_denied'), true);
                         return;
                     }
 
@@ -553,14 +556,21 @@ class NewProjectCommand
                         $username = 'unavailable';
                     }
 
+                    // Read from Composer rather than hardcoding, so this line
+                    // doesn't go stale the first time the library is updated.
+                    $version = class_exists(\Composer\InstalledVersions::class)
+                        ? \Composer\InstalledVersions::getPrettyVersion('devflow/telegram-bot')
+                        : 'unknown';
+
                     $ctx->answerCallback();
                     $ctx->reply(
-                        "📊 *Bot Status*\n\n" .
-                        "🤖 Bot: {$username}\n" .
-                        "📦 Library: devflow/telegram-bot v1.3.0\n\n" .
-                        "👥 Total users: {$total}\n" .
-                        "✅ Active today: {$today}\n" .
-                        "🚫 Banned: {$banned}",
+                        $ctx->t('admin.status', [
+                            'username' => $username,
+                            'version'  => $version,
+                            'total'    => $total,
+                            'today'    => $today,
+                            'banned'   => $banned,
+                        ]),
                         ['parse_mode' => 'Markdown']
                     );
                 });
@@ -591,28 +601,6 @@ class NewProjectCommand
         PHP;
     }
 
-    private function welcomeText(): string
-    {
-        return <<<'PHP'
-        <?php
-
-        namespace App\Texts;
-
-        use Devflow\TelegramBot\Support\BotText;
-
-        class WelcomeText extends BotText
-        {
-            protected static function translations(): array
-            {
-                return [
-                    'en' => 'Hello, {name}! Welcome to the bot.',
-                    // 'fa' => 'سلام، {name}! به ربات خوش آمدید.',
-                ];
-            }
-        }
-        PHP;
-    }
-
     private function langEn(): string
     {
         return <<<'PHP'
@@ -621,10 +609,20 @@ class NewProjectCommand
         // Dot-notation keys are supported: 'menu' => ['account' => '...'] is
         // reachable as $ctx->t('menu.account').
         return [
-            'welcome' => 'Hello, {name}! Welcome to the bot.',
-            'menu'    => [
+            'welcome'    => '👋 Hello, {name}! Welcome to the bot.',
+            'user_panel' => '👤 User panel.',
+            'echo'       => 'You said: {text}',
+            'banned'     => 'You are banned from using this bot.',
+            'help'       => "Available commands:\n/start — Start the bot\n/help  — Show this message",
+            'menu'       => [
                 'account' => '📋 My Account',
                 'help'    => '❓ Help',
+            ],
+            'admin' => [
+                'panel'             => '🔧 Admin panel, {name}.',
+                'bot_status_button' => '📊 Bot Status',
+                'access_denied'     => 'Access denied.',
+                'status'            => "📊 *Bot Status*\n\n🤖 Bot: {username}\n📦 Library: devflow/telegram-bot {version}\n\n👥 Total users: {total}\n✅ Active today: {today}\n🚫 Banned: {banned}",
             ],
         ];
         PHP;
@@ -636,10 +634,20 @@ class NewProjectCommand
         <?php
 
         return [
-            'welcome' => 'سلام، {name}! به ربات خوش آمدید.',
-            'menu'    => [
+            'welcome'    => '👋 سلام، {name}! به ربات خوش آمدید.',
+            'user_panel' => '👤 پنل کاربری.',
+            'echo'       => 'شما گفتید: {text}',
+            'banned'     => 'شما از استفاده از این ربات مسدود شده‌اید.',
+            'help'       => "دستورات موجود:\n/start — شروع ربات\n/help  — نمایش این پیام",
+            'menu'       => [
                 'account' => '📋 حساب من',
                 'help'    => '❓ راهنما',
+            ],
+            'admin' => [
+                'panel'             => '🔧 پنل مدیریت، {name}.',
+                'bot_status_button' => '📊 وضعیت ربات',
+                'access_denied'     => 'دسترسی غیرمجاز.',
+                'status'            => "📊 *وضعیت ربات*\n\n🤖 ربات: {username}\n📦 کتابخانه: devflow/telegram-bot {version}\n\n👥 کل کاربران: {total}\n✅ فعال امروز: {today}\n🚫 مسدود: {banned}",
             ],
         ];
         PHP;

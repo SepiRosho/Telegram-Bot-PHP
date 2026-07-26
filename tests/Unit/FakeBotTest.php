@@ -101,4 +101,42 @@ class FakeBotTest extends TestCase
 
         $fake->assertSent('sendMessage', fn(array $p) => $p['text'] === 'admin');
     }
+
+    public function test_fake_user_carries_a_stable_id_for_related_tables(): void
+    {
+        // Almost any bot beyond a toy example has its own tables keyed on
+        // telegram_users.id; without an id, nothing a handler stores can be
+        // related back to $ctx->user().
+        $fake = Bot::fake();
+        $seen = [];
+        $fake->onCommand('start', function (Context $ctx) use (&$seen) {
+            $seen[] = $ctx->user()->id;
+        });
+
+        $fake->dispatch(UpdateFactory::command('start'));
+        $fake->dispatch(UpdateFactory::command('start'));
+
+        $this->assertSame([1, 1], $seen, 'The same Telegram user must keep the same id across dispatches.');
+        $this->assertSame(1, $fake->users()->find(1)?->id);
+    }
+
+    public function test_distinct_users_get_distinct_ids(): void
+    {
+        $fake = Bot::fake();
+        $fake->onCommand('start', fn(Context $ctx) => null);
+
+        $fake->dispatch(UpdateFactory::command('start'));
+        $fake->dispatch(UpdateFactory::command('start', overrides: [
+            'message' => [
+                'message_id' => 2,
+                'date'       => 0,
+                'chat'       => ['id' => 101, 'type' => 'private'],
+                'from'       => ['id' => 201, 'is_bot' => false, 'first_name' => 'Other'],
+                'text'       => '/start',
+                'entities'   => [['type' => 'bot_command', 'offset' => 0, 'length' => 6]],
+            ],
+        ]));
+
+        $this->assertSame([1, 2], array_map(fn($u) => $u->id, array_values($fake->users()->all())));
+    }
 }

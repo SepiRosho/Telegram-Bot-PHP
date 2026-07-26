@@ -13,6 +13,8 @@ class FakeUserRepository
     /** @var array<int, FakeUser> */
     private array $users = [];
 
+    private int $nextId = 1;
+
     public function findOrCreateByUpdate(Update $update): ?FakeUser
     {
         $from = $update->message?->from
@@ -37,6 +39,7 @@ class FakeUserRepository
                 last_name: $from->lastName,
                 username: $from->username,
                 language_code: $from->languageCode,
+                id: $this->nextId++,
             );
         }
 
@@ -46,6 +49,18 @@ class FakeUserRepository
     public function get(int $telegramId): ?FakeUser
     {
         return $this->users[$telegramId] ?? null;
+    }
+
+    /** Look up by surrogate id, mirroring an Eloquent `find()`. */
+    public function find(int $id): ?FakeUser
+    {
+        foreach ($this->users as $user) {
+            if ($user->id === $id) {
+                return $user;
+            }
+        }
+
+        return null;
     }
 
     public function all(): array

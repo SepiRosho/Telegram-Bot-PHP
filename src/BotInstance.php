@@ -6,6 +6,7 @@ use Devflow\TelegramBot\Api\HttpClient;
 use Devflow\TelegramBot\Api\HttpClientInterface;
 use Devflow\TelegramBot\Api\TelegramApi;
 use Devflow\TelegramBot\Exceptions\WebhookException;
+use Devflow\TelegramBot\Middleware\MiddlewareInterface;
 use Devflow\TelegramBot\Routing\Router;
 use Devflow\TelegramBot\Support\Lang;
 use Devflow\TelegramBot\Types\Update;
@@ -84,194 +85,197 @@ class BotInstance
     // Route registration — fluent, returns $this
     // -------------------------------------------------------------------------
 
-    public function onCommand(string $command, callable|string $handler): static
+    public function onCommand(string $command, callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('command', $command, $handler);
+        $this->router->addRoute('command', $command, $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onText(callable|string $handler): static
+    public function onText(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('text', '*', $handler);
+        $this->router->addRoute('text', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onMessage(callable|string $handler): static
+    public function onMessage(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('message', '*', $handler);
+        $this->router->addRoute('message', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onCallbackQuery(string|callable $patternOrHandler, callable|string|null $handler = null): static
-    {
+    public function onCallbackQuery(
+        string|callable $patternOrHandler,
+        callable|string|null $handler = null,
+        array $middleware = [],
+    ): static {
         if ($handler === null) {
-            $this->router->addRoute('callback_query', '*', $patternOrHandler);
+            $this->router->addRoute('callback_query', '*', $patternOrHandler, middleware: $middleware);
         } else {
-            $this->router->addRoute('callback_query', (string) $patternOrHandler, $handler);
+            $this->router->addRoute('callback_query', (string) $patternOrHandler, $handler, middleware: $middleware);
         }
         return $this;
     }
 
-    public function onPhoto(callable|string $handler): static
+    public function onPhoto(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('photo', '*', $handler);
+        $this->router->addRoute('photo', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onDocument(callable|string $handler): static
+    public function onDocument(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('document', '*', $handler);
+        $this->router->addRoute('document', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onInlineQuery(callable|string $handler): static
+    public function onInlineQuery(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('inline_query', '*', $handler);
+        $this->router->addRoute('inline_query', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onChosenInlineResult(callable|string $handler): static
+    public function onChosenInlineResult(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('chosen_inline_result', '*', $handler);
+        $this->router->addRoute('chosen_inline_result', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onEditedMessage(callable|string $handler): static
+    public function onEditedMessage(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('edited_message', '*', $handler);
+        $this->router->addRoute('edited_message', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onChannelPost(callable|string $handler): static
+    public function onChannelPost(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('channel_post', '*', $handler);
+        $this->router->addRoute('channel_post', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onPoll(callable|string $handler): static
+    public function onPoll(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('poll', '*', $handler);
+        $this->router->addRoute('poll', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onPollAnswer(callable|string $handler): static
+    public function onPollAnswer(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('poll_answer', '*', $handler);
+        $this->router->addRoute('poll_answer', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onMyChatMember(callable|string $handler): static
+    public function onMyChatMember(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('my_chat_member', '*', $handler);
+        $this->router->addRoute('my_chat_member', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onChatMember(callable|string $handler): static
+    public function onChatMember(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('chat_member', '*', $handler);
+        $this->router->addRoute('chat_member', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onChatJoinRequest(callable|string $handler): static
+    public function onChatJoinRequest(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('chat_join_request', '*', $handler);
+        $this->router->addRoute('chat_join_request', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onShippingQuery(callable|string $handler): static
+    public function onShippingQuery(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('shipping_query', '*', $handler);
+        $this->router->addRoute('shipping_query', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onPreCheckoutQuery(callable|string $handler): static
+    public function onPreCheckoutQuery(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('pre_checkout_query', '*', $handler);
+        $this->router->addRoute('pre_checkout_query', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onUpdate(callable|string $handler): static
+    public function onUpdate(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('update', '*', $handler);
+        $this->router->addRoute('update', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onBusinessConnection(callable|string $handler): static
+    public function onBusinessConnection(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('business_connection', '*', $handler);
+        $this->router->addRoute('business_connection', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onBusinessMessage(callable|string $handler): static
+    public function onBusinessMessage(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('business_message', '*', $handler);
+        $this->router->addRoute('business_message', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onEditedBusinessMessage(callable|string $handler): static
+    public function onEditedBusinessMessage(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('edited_business_message', '*', $handler);
+        $this->router->addRoute('edited_business_message', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onDeletedBusinessMessages(callable|string $handler): static
+    public function onDeletedBusinessMessages(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('deleted_business_messages', '*', $handler);
+        $this->router->addRoute('deleted_business_messages', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onGuestMessage(callable|string $handler): static
+    public function onGuestMessage(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('guest_message', '*', $handler);
+        $this->router->addRoute('guest_message', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onMessageReaction(callable|string $handler): static
+    public function onMessageReaction(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('message_reaction', '*', $handler);
+        $this->router->addRoute('message_reaction', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onMessageReactionCount(callable|string $handler): static
+    public function onMessageReactionCount(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('message_reaction_count', '*', $handler);
+        $this->router->addRoute('message_reaction_count', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onPurchasedPaidMedia(callable|string $handler): static
+    public function onPurchasedPaidMedia(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('purchased_paid_media', '*', $handler);
+        $this->router->addRoute('purchased_paid_media', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onChatBoost(callable|string $handler): static
+    public function onChatBoost(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('chat_boost', '*', $handler);
+        $this->router->addRoute('chat_boost', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onRemovedChatBoost(callable|string $handler): static
+    public function onRemovedChatBoost(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('removed_chat_boost', '*', $handler);
+        $this->router->addRoute('removed_chat_boost', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onManagedBot(callable|string $handler): static
+    public function onManagedBot(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('managed_bot', '*', $handler);
+        $this->router->addRoute('managed_bot', '*', $handler, middleware: $middleware);
         return $this;
     }
 
-    public function onStep(string $step, callable|string $handler, array $types = ['text']): static
+    public function onStep(string $step, callable|string $handler, array $types = ['text'], array $middleware = []): static
     {
-        $this->router->addRoute('step', $step, $handler, $types);
+        $this->router->addRoute('step', $step, $handler, $types, $middleware);
         return $this;
     }
 
     /** Fires for any command not handled by a registered onCommand() route. */
-    public function onUnknownCommand(callable|string $handler): static
+    public function onUnknownCommand(callable|string $handler, array $middleware = []): static
     {
-        $this->router->addRoute('unknown_command', '*', $handler);
+        $this->router->addRoute('unknown_command', '*', $handler, middleware: $middleware);
         return $this;
     }
 
@@ -283,7 +287,7 @@ class BotInstance
         return $this;
     }
 
-    public function use(callable|string $middleware): static
+    public function use(callable|string|MiddlewareInterface $middleware): static
     {
         $this->router->addMiddleware($middleware);
         return $this;

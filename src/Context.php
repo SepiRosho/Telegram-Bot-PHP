@@ -292,9 +292,11 @@ class Context
      */
     public function locale(): string
     {
-        return $this->dbUser?->language
-            ?? $this->from()?->languageCode
-            ?? Lang::defaultLocale();
+        $locale = $this->dbUser?->language ?? $this->from()?->languageCode;
+
+        return $locale === null || $locale === ''
+            ? Lang::defaultLocale()
+            : Lang::normalize($locale);
     }
 
     public function setLocale(string $locale): void

@@ -102,6 +102,14 @@ Bot::onCallbackQuery('banned_page_*', function (Context $ctx) {
 
 `renderRow` receives one item and returns one keyboard row (usually a single button, but can be more). The nav row (`⬅️ 2/5 ➡️`) only appears when there's more than one page; an out-of-range `page` is clamped into range automatically.
 
+The middle page-indicator button (`2/5`) is not decorative — it carries real `callback_data` (`"{$cbPrefix}noop"`), so tapping it fires a callback query like any other button. If you don't register a handler for it, the router now auto-answers unrouted callback queries (see below), which clears the tap spinner on the user's client instead of leaving it spinning until Telegram times it out. Registering your own handler is still the explicit option if you want to, say, show a toast:
+
+```php
+Bot::onCallbackQuery('banned_noop', function (Context $ctx) {
+    $ctx->answerCallback(); // no-op — just dismiss the spinner
+});
+```
+
 ---
 
 ## Handling Callback Queries
@@ -123,6 +131,16 @@ Bot::onCallbackQuery('admin_*', function (Context $ctx) {
 ```
 
 `$ctx->answerCallback(string $text = '', bool $showAlert = false)` — always call this to dismiss the loading indicator on the button.
+
+### Unrouted callback queries are answered automatically
+
+Telegram spins the tap indicator on the user's client until the bot answers a callback query. If no route matches (a stale button after a redeploy, the `noop` pagination button with no registered handler, etc.), the router now calls `answerCallbackQuery` for you so the spinner clears instead of hanging until Telegram gives up. Opt out with:
+
+```php
+Bot::init(env('BOT_TOKEN'), ['auto_answer_callbacks' => false]);
+```
+
+This is a safety net, not a substitute for calling `$ctx->answerCallback()` yourself in a matched handler — do that when you want to control the toast text or show an alert.
 
 ---
 

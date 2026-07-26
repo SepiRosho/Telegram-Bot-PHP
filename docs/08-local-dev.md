@@ -1,6 +1,26 @@
 # 08 — Local Development
 
-Telegram requires your webhook URL to use **HTTPS**. On localhost you have plain HTTP, so you need a tunnel — a tool that creates a temporary public HTTPS URL that forwards traffic to your local machine.
+Telegram requires your webhook URL to use **HTTPS**. On localhost you have plain HTTP, so historically that meant a tunnel — a tool that creates a temporary public HTTPS URL that forwards traffic to your local machine. **You don't need one to get started**: `vendor/bin/devflow poll` runs your bot in long-polling mode instead, with no webhook, no tunnel, and no public URL at all. Reach for a tunnel (Option A/B below) only once you specifically need to test webhook delivery.
+
+---
+
+## Option 0: `devflow poll` (recommended for local dev)
+
+Long-polling means your bot repeatedly asks Telegram "any new updates?" instead of Telegram pushing them to a webhook URL — so there's nothing to expose publicly. This is strictly less setup than a tunnel and is the fastest way to iterate locally.
+
+```bash
+vendor/bin/devflow poll
+```
+
+This boots `bootstrap/app.php` (same as a webhook request would) and then loops, calling `getUpdates()` and dispatching through your registered handlers exactly like a real webhook would. Press `Ctrl+C` to stop.
+
+> **Delete your webhook first.** Telegram only delivers updates one way at a time — if a webhook is set, `getUpdates()` returns nothing (or errors). Delete it with a one-off script before polling (see [Stopping the bot](#stopping-the-bot) below):
+> ```php
+> Bot::init(env('BOT_TOKEN'));
+> Bot::deleteWebhook();
+> ```
+
+Polling is meant for local development, not production — a long-running PHP process without a supervisor (systemd, supervisord, etc.) is a worse fit for a live server than a webhook behind your normal web server. Use polling to develop, then switch to a webhook (Option A/B, or a real HTTPS domain) to deploy.
 
 ---
 
@@ -40,9 +60,57 @@ $fake = Bot::fake();
 $fake->dispatch(UpdateFactory::command('start'));
 ```
 
+### Works with or without PHPUnit
+
+`Bot::fake()` and its `assertSent()`/`assertNotSent()` don't require `phpunit/phpunit` to be installed. If PHPUnit is present (the normal case inside a test suite), assertions delegate to `PHPUnit\Framework\Assert`, so failures show up as regular PHPUnit assertion failures with the usual diff output and count toward your suite's assertion total. If PHPUnit is **not** installed — e.g. you're driving `Bot::fake()` from a throwaway CLI script, or a consuming project that only requires this library without `require-dev` — a failed assertion throws `Devflow\TelegramBot\Exceptions\AssertionFailedException` (a plain `\RuntimeException`) instead, with the same message. Either way, `Bot::fake()` itself never requires PHPUnit to be autoloadable just to construct or dispatch.
+
+### Fake users are not your real `telegram_users` table
+
+`Bot::fake()`'s user repository (`FakeUserRepository`, exposed via `$fake->users()`) is a plain in-memory array of `FakeUser` objects — it is **not** a stand-in for your project's real `telegram_users` table. `FakeUser` supports `step()`/`temp()`/`setLocale()`-style flows and has a surrogate `id`, but if your own app has tables with foreign keys into `telegram_users.id` (orders, subscriptions, etc.), your app's real Eloquent queries against those tables will not see anything `Bot::fake()` creates — there's no database row to join against.
+
+For that case, test against a real (ideally disposable/test) database instead: keep the fake HTTP client so no real Telegram calls go out, but compose `BotInstance` directly with `Api\FakeHttpClient` and the real `Database\UserRepository`, so `$ctx->user()` returns actual Eloquent models backed by your test database:
+
+```php
+use Devflow\TelegramBot\Api\FakeHttpClient;
+use Devflow\TelegramBot\BotInstance;
+use Devflow\TelegramBot\Context;
+use Devflow\TelegramBot\Database\UserRepository;
+use Devflow\TelegramBot\Testing\UpdateFactory;
+
+// Point Capsule at a real test database before this, same as bootstrap/app.php.
+
+$config = ['database' => true];
+$http = new FakeHttpClient();
+$instance = new BotInstance('fake-token', $config, $http);
+
+// Register routes on this specific instance rather than through Bot::init()/
+// Bot::fake() — a hand-built BotInstance isn't the static Bot:: facade's
+// active instance, so handler classes that internally call Bot::onCommand()
+// wouldn't reach it. Register closures against $instance directly instead:
+$instance->onCommand('start', function (Context $ctx) {
+    $ctx->reply('Hello, ' . $ctx->from()?->firstName . '! Your DB id is ' . $ctx->user()?->id);
+});
+
+$userRepository = new UserRepository($config);
+
+$instance->router()->dispatch(
+    UpdateFactory::command('start'),
+    $instance->api(),
+    $config,
+    $userRepository,
+);
+
+// $http->calls() / $http->callsTo('sendMessage') gives you the same raw data
+// FakeBot's assertSent()/assertNotSent() build on — inspect it directly, or
+// wrap this composition in your own thin test helper.
+$sent = $http->callsTo('sendMessage');
+```
+
+This gets you a real `TelegramUser` row (visible to your app's own queries and foreign keys) while still avoiding any real Telegram API calls.
+
 ---
 
-## Option A: ngrok (recommended)
+## Option A: ngrok (for testing real webhook delivery)
 
 ### Install ngrok on Windows
 

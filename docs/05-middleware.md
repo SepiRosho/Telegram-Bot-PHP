@@ -64,6 +64,43 @@ Middleware runs in registration order. In this example, `LogMiddleware` runs fir
 
 ---
 
+## Per-route middleware
+
+Every route registration method — `onCommand()`, `onText()`, `onCallbackQuery()`, `onStep()`, and the rest — accepts an optional `array $middleware = []` as its last argument. It runs only for that one route, layered on top of whatever you registered with `Bot::use()`:
+
+```php
+Bot::onCommand('broadcast', \App\Commands\BroadcastCommand::class, [
+    \App\Middleware\AdminMiddleware::class,
+]);
+```
+
+Use named arguments when you're constructing the middleware inline, so it reads clearly at the call site:
+
+```php
+Bot::onCommand(
+    'send',
+    \App\Commands\SendCommand::class,
+    middleware: [new RateLimitMiddleware(maxHits: 3)],
+);
+```
+
+**Ordering:** global middleware (`Bot::use()`) wraps route middleware, which wraps the handler. A global auth check registered with `Bot::use()` always runs before a route's own middleware, and neither has to know about the other:
+
+```
+Bot::use(...)          ← runs first
+  route middleware      ← runs second
+    handler              ← runs last
+```
+
+`onCallbackQuery()` and `onStep()` take the middleware array after their other optional arguments:
+
+```php
+Bot::onCallbackQuery('confirm_*', $handler, middleware: [$adminOnly]);
+Bot::onStep('checkout.confirm_payment', $handler, types: ['text'], middleware: [$rateLimit]);
+```
+
+---
+
 ## Example 1: Logging
 
 ```php
@@ -130,18 +167,28 @@ class AdminMiddleware implements MiddlewareInterface
 }
 ```
 
-You can register this only for specific commands by applying it inline, or by creating separate bot instances for admin routes. The simplest approach for most bots is to check inside the handler:
+The primary way to apply this is as **route middleware** — pass it in the `$middleware` array of just the routes that need it, instead of registering it globally with `Bot::use()` (which would run it, and pay for the `$ctx->user()` lookup, on every single update):
 
 ```php
-Bot::onCommand('broadcast', function (Context $ctx) {
-    if (!$ctx->user()?->isAdmin()) {
-        $ctx->reply('Admin only.');
-        return;
-    }
+Bot::onCommand('broadcast', \App\Commands\BroadcastCommand::class, [
+    \App\Middleware\AdminMiddleware::class,
+]);
 
-    // ... broadcast logic
-});
+Bot::onCommand('stats', \App\Commands\StatsCommand::class, [
+    \App\Middleware\AdminMiddleware::class,
+]);
 ```
+
+This composes cleanly with other route middleware — e.g. rate-limit admin commands more loosely than public ones:
+
+```php
+Bot::onCommand('broadcast', \App\Commands\BroadcastCommand::class, [
+    \App\Middleware\AdminMiddleware::class,
+    new RateLimitMiddleware(maxHits: 3, windowSeconds: 60),
+]);
+```
+
+> Checking `$ctx->user()?->isAdmin()` inline at the top of a handler still works fine for a one-off command, but route middleware is preferred once you have more than one admin-only route — it keeps the guard out of the handler body and reusable across all of them.
 
 ---
 
@@ -167,6 +214,20 @@ The `message` and `windowSeconds` are optional — defaults are 10 hits / 60 sec
 Hit timestamps are stored in the `rate_hits` JSON column on the `telegram_users` table. Old timestamps are pruned on each request.
 
 > **Note:** `RateLimitMiddleware` silently passes through if `$ctx->user()` is null (no DB or untracked user), so it never breaks bots that have the database disabled.
+
+### Localizing the block message
+
+`message` accepts a `string` or a `\Closure(Context): string`. The constructor runs at registration time — before there's any `Context`, and therefore before any resolvable locale — so a plain string can't call `$ctx->t()`. Pass a closure instead; it's resolved fresh on every blocked request:
+
+```php
+Bot::use(new RateLimitMiddleware(
+    maxHits: 10,
+    windowSeconds: 60,
+    message: fn(Context $ctx) => $ctx->t('rate_limited'),
+));
+```
+
+`maxHits`, `windowSeconds`, and `message` are `protected` properties, so subclass `RateLimitMiddleware` if you need to override its behavior (e.g. a per-role limit) rather than reimplementing it from scratch.
 
 ---
 

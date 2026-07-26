@@ -108,6 +108,8 @@ Bot::loadHandlers([
 
 If `UserHandlers` has an `onText` catch-all and `AdminHandlers` also has one, the `UserHandlers` version wins. Put general catch-alls last.
 
+**Exception: `onStep()` routes.** Step routes are checked *before* every other route type whenever the user has an active step, regardless of which file — or which position within a file — they're registered in. This means a broad `onText()` in `UserHandlers` can no longer silently swallow a mid-wizard message defined later in, say, `CheckoutHandlers` — the step route wins even though it's registered second. Commands are unaffected (a command never matches a step route). Set `'step_routes_first' => false` in `Bot::init()`'s config to go back to flat registration-order matching for steps too. See [03-handlers.md](03-handlers.md#step-handlers--matching-a-specific-wizard-step) for details.
+
 An `onMessage()` catch-all matches **every** message type, including commands — so an early `onMessage()` handler can silently swallow `/admin` before it ever reaches a later-registered command route, with no error or warning. If you want an "unknown command" responder specifically, use `onUnknownCommand()` instead of `onMessage()`:
 
 ```php

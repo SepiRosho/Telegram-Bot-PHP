@@ -280,4 +280,212 @@ class RouterTest extends TestCase
         $this->assertFalse($unknownCalled);
         $this->assertTrue($startCalled);
     }
+
+    // -------------------------------------------------------------------------
+    // Step-route priority
+    // -------------------------------------------------------------------------
+
+    public function test_step_route_wins_over_a_text_route_registered_before_it(): void
+    {
+        // The registration order a developer reaches for naturally — a handler
+        // group owning a catch-all onText loaded before the group owning the
+        // wizard — used to swallow every mid-flow message silently.
+        $router = new Router();
+        $textCalled = false;
+        $stepCalled = false;
+        $router->addRoute('text', '*', function () use (&$textCalled) { $textCalled = true; });
+        $router->addRoute('step', 'compose', function () use (&$stepCalled) { $stepCalled = true; });
+
+        $router->dispatch($this->messageUpdate('hello'), $this->makeApi(), [], $this->fakeUserRepository('compose'));
+
+        $this->assertTrue($stepCalled);
+        $this->assertFalse($textCalled);
+    }
+
+    public function test_text_route_still_wins_when_the_user_is_not_in_that_step(): void
+    {
+        $router = new Router();
+        $textCalled = false;
+        $stepCalled = false;
+        $router->addRoute('text', '*', function () use (&$textCalled) { $textCalled = true; });
+        $router->addRoute('step', 'compose', function () use (&$stepCalled) { $stepCalled = true; });
+
+        $router->dispatch($this->messageUpdate('hello'), $this->makeApi(), [], $this->fakeUserRepository('other'));
+
+        $this->assertTrue($textCalled);
+        $this->assertFalse($stepCalled);
+    }
+
+    public function test_command_still_escapes_an_active_step(): void
+    {
+        $router = new Router();
+        $stepCalled = false;
+        $cancelCalled = false;
+        $router->addRoute('step', 'compose', function () use (&$stepCalled) { $stepCalled = true; });
+        $router->addRoute('command', 'cancel', function () use (&$cancelCalled) { $cancelCalled = true; });
+
+        $router->dispatch($this->messageUpdate('/cancel'), $this->makeApi(), [], $this->fakeUserRepository('compose'));
+
+        $this->assertTrue($cancelCalled);
+        $this->assertFalse($stepCalled);
+    }
+
+    public function test_wildcard_step_route_does_not_match_a_user_with_no_active_step(): void
+    {
+        $router = new Router();
+        $stepCalled = false;
+        $textCalled = false;
+        $router->addRoute('step', '*', function () use (&$stepCalled) { $stepCalled = true; });
+        $router->addRoute('text', '*', function () use (&$textCalled) { $textCalled = true; });
+
+        $router->dispatch($this->messageUpdate('hello'), $this->makeApi(), [], $this->fakeUserRepository(''));
+
+        $this->assertFalse($stepCalled);
+        $this->assertTrue($textCalled);
+    }
+
+    public function test_wildcard_step_route_matches_any_active_step(): void
+    {
+        $router = new Router();
+        $stepCalled = false;
+        $router->addRoute('step', '*', function () use (&$stepCalled) { $stepCalled = true; });
+
+        $router->dispatch($this->messageUpdate('hello'), $this->makeApi(), [], $this->fakeUserRepository('anything'));
+
+        $this->assertTrue($stepCalled);
+    }
+
+    public function test_step_priority_can_be_disabled_by_config(): void
+    {
+        $router = new Router();
+        $textCalled = false;
+        $stepCalled = false;
+        $router->addRoute('text', '*', function () use (&$textCalled) { $textCalled = true; });
+        $router->addRoute('step', 'compose', function () use (&$stepCalled) { $stepCalled = true; });
+
+        $router->dispatch(
+            $this->messageUpdate('hello'),
+            $this->makeApi(),
+            ['step_routes_first' => false],
+            $this->fakeUserRepository('compose'),
+        );
+
+        $this->assertTrue($textCalled);
+        $this->assertFalse($stepCalled);
+    }
+
+    // -------------------------------------------------------------------------
+    // Middleware
+    // -------------------------------------------------------------------------
+
+    public function test_route_middleware_runs_only_for_its_own_route(): void
+    {
+        $router = new Router();
+        $guarded = 0;
+        $middleware = function ($ctx, $next) use (&$guarded) { $guarded++; $next($ctx); };
+
+        $router->addRoute('command', 'admin', fn() => null, middleware: [$middleware]);
+        $router->addRoute('command', 'start', fn() => null);
+
+        $router->dispatch($this->messageUpdate('/start'), $this->makeApi());
+        $this->assertSame(0, $guarded);
+
+        $router->dispatch($this->messageUpdate('/admin'), $this->makeApi());
+        $this->assertSame(1, $guarded);
+    }
+
+    public function test_route_middleware_can_short_circuit_its_handler(): void
+    {
+        $router = new Router();
+        $handlerCalled = false;
+        $deny = function () { /* never calls $next */ };
+
+        $router->addRoute('command', 'admin', function () use (&$handlerCalled) { $handlerCalled = true; }, middleware: [$deny]);
+
+        $router->dispatch($this->messageUpdate('/admin'), $this->makeApi());
+
+        $this->assertFalse($handlerCalled);
+    }
+
+    public function test_global_middleware_wraps_route_middleware_which_wraps_the_handler(): void
+    {
+        $router = new Router();
+        $order = [];
+
+        $router->addMiddleware(function ($ctx, $next) use (&$order) { $order[] = 'global'; $next($ctx); });
+        $router->addRoute(
+            'command',
+            'admin',
+            function () use (&$order) { $order[] = 'handler'; },
+            middleware: [function ($ctx, $next) use (&$order) { $order[] = 'route'; $next($ctx); }],
+        );
+
+        $router->dispatch($this->messageUpdate('/admin'), $this->makeApi());
+
+        $this->assertSame(['global', 'route', 'handler'], $order);
+    }
+
+    public function test_middleware_interface_instance_is_dispatched_via_handle(): void
+    {
+        // MiddlewareInterface declares handle(), not __invoke(), so an instance
+        // is not callable — Bot::use(new RateLimitMiddleware(...)), the form
+        // every doc page shows, used to fail before it ever ran.
+        $router = new Router();
+        $handlerCalled = false;
+
+        $middleware = new class implements \Devflow\TelegramBot\Middleware\MiddlewareInterface {
+            public bool $ran = false;
+
+            public function handle(\Devflow\TelegramBot\Context $ctx, callable $next): void
+            {
+                $this->ran = true;
+                $next($ctx);
+            }
+        };
+
+        $router->addMiddleware($middleware);
+        $router->addRoute('command', 'start', function () use (&$handlerCalled) { $handlerCalled = true; });
+
+        $router->dispatch($this->messageUpdate('/start'), $this->makeApi());
+
+        $this->assertTrue($middleware->ran);
+        $this->assertTrue($handlerCalled);
+    }
+
+    // -------------------------------------------------------------------------
+    // Unrouted callback queries
+    // -------------------------------------------------------------------------
+
+    public function test_unmatched_callback_query_is_auto_answered(): void
+    {
+        $http = new \Devflow\TelegramBot\Api\FakeHttpClient();
+        $router = new Router();
+
+        $router->dispatch($this->callbackUpdate('reports_noop'), new TelegramApi($http));
+
+        $calls = $http->callsTo('answerCallbackQuery');
+        $this->assertCount(1, $calls);
+        $this->assertSame('cq1', $calls[0]['params']['callback_query_id']);
+    }
+
+    public function test_matched_callback_query_is_not_auto_answered(): void
+    {
+        $http = new \Devflow\TelegramBot\Api\FakeHttpClient();
+        $router = new Router();
+        $router->addRoute('callback_query', 'reports_*', fn() => null);
+
+        $router->dispatch($this->callbackUpdate('reports_page_2'), new TelegramApi($http));
+
+        $this->assertSame([], $http->callsTo('answerCallbackQuery'));
+    }
+
+    public function test_auto_answer_can_be_disabled_by_config(): void
+    {
+        $http = new \Devflow\TelegramBot\Api\FakeHttpClient();
+        $router = new Router();
+
+        $router->dispatch($this->callbackUpdate('reports_noop'), new TelegramApi($http), ['auto_answer_callbacks' => false]);
+
+        $this->assertSame([], $http->callsTo('answerCallbackQuery'));
+    }
 }

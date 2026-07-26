@@ -145,6 +145,16 @@ Bot::onMessage($handler3);           // checked third — only runs if no match 
 
 Put specific handlers before general ones, and `onMessage` / `onUpdate` last.
 
+Every registration method above also accepts an optional trailing `array $middleware = []`, applied to that one route only, on top of anything registered globally with `Bot::use()`:
+
+```php
+Bot::onCommand('broadcast', \App\Commands\BroadcastCommand::class, [
+    \App\Middleware\AdminMiddleware::class,
+]);
+```
+
+See [05-middleware.md](05-middleware.md#per-route-middleware) for the full picture, including ordering relative to global middleware.
+
 ---
 
 ## Adding a new command (full workflow)
@@ -238,7 +248,13 @@ Bot::onStep('register.ask_age', function (Context $ctx) {
 
 > **Requires database.** `onStep()` reads `$ctx->step()` which comes from the `telegram_users` table. See [06-database.md](06-database.md).
 
-Step routes are checked **after** all other route types, so a command like `/cancel` will still match even if the user is mid-flow.
+Step routes are checked **first** — before any command, text, or callback route — whenever the user has an active step. This is deliberate: a broad `onText()` catch-all registered earlier (e.g. in an earlier handler group) can no longer swallow a mid-wizard message just because it happens to be registered first. Commands are unaffected — a command never matches a step route, so `/cancel` still escapes an active flow regardless of registration order.
+
+If you'd rather have flat, registration-order matching (the pre-existing behavior), opt out with:
+
+```php
+Bot::init(env('BOT_TOKEN'), ['step_routes_first' => false]);
+```
 
 ---
 

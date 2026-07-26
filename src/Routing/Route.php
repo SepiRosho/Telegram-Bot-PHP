@@ -9,5 +9,6 @@ class Route
         public readonly string $pattern,
         public readonly mixed $handler,
         public readonly array $types = ['text'],
+        public readonly array $middleware = [],
     ) {}
 }

@@ -63,18 +63,77 @@ class Lang
     public static function findKey(string $text, array $locales): ?string
     {
         foreach ($locales as $locale) {
-            $key = array_search($text, self::load($locale), true);
-            if ($key !== false) {
-                return $key;
+            foreach (self::candidates($locale) as $candidate) {
+                $key = array_search($text, self::load($candidate), true);
+                if ($key !== false) {
+                    return $key;
+                }
             }
         }
 
         return null;
     }
 
+    /**
+     * The most specific locale tag that actually resolves to a lang file,
+     * or the bare primary subtag if none do. Use it to store a clean value
+     * on a user row rather than persisting whatever Telegram sent verbatim.
+     */
+    public static function normalize(string $locale): string
+    {
+        $candidates = self::candidates($locale);
+
+        if ($candidates === []) {
+            return self::$defaultLocale;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (self::load($candidate) !== []) {
+                return $candidate;
+            }
+        }
+
+        return end($candidates);
+    }
+
     private static function lookup(string $locale, string $key): ?string
     {
-        return self::load($locale)[$key] ?? null;
+        foreach (self::candidates($locale) as $candidate) {
+            $value = self::load($candidate)[$key] ?? null;
+            if ($value !== null) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Telegram's `language_code` is an IETF tag, so a real client can report
+     * `fa-IR` or `zh-Hans-CN` where the project only ships `fa.php`/`zh.php`
+     * — an exact-match require would fall straight through to the default
+     * locale and serve English to a Persian speaker with no error anywhere.
+     *
+     * Try the full tag first (a project may genuinely ship `pt-BR.php`), then
+     * drop one subtag at a time: `fa-IR` → `fa`, `zh-Hans-CN` → `zh-hans` → `zh`.
+     */
+    private static function candidates(string $locale): array
+    {
+        $locale = str_replace('_', '-', trim($locale));
+
+        if ($locale === '') {
+            return [];
+        }
+
+        $candidates = [$locale, strtolower($locale)];
+        $parts = explode('-', strtolower($locale));
+
+        while (count($parts) > 1) {
+            array_pop($parts);
+            $candidates[] = implode('-', $parts);
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     private static function load(string $locale): array

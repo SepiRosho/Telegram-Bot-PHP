@@ -72,7 +72,7 @@ Bot::onStep('anon.compose', function (Context $ctx) {
 Bot::onStep('support.attach_file', $handler, types: ['*']);
 ```
 
-Supported `types` values: `text`, `photo`, `document`, `audio`, `video`, `voice`, `video_note`, `sticker`, `animation`, `contact`, `location`, `venue`, `dice`, or `*` for any. `onStep()` routes are still checked in registration order alongside your other routes — a `types`-restricted step route simply won't match a message type it wasn't given.
+Supported `types` values: `text`, `photo`, `document`, `audio`, `video`, `voice`, `video_note`, `sticker`, `animation`, `contact`, `location`, `venue`, `dice`, or `*` for any. A `types`-restricted step route simply won't match a message type it wasn't given — and (see [03-handlers.md](03-handlers.md#step-handlers--matching-a-specific-wizard-step)) `onStep()` routes are checked *before* other route types whenever the user has an active step, so registration order relative to your `onText()`/`onMessage()` handlers doesn't matter.
 
 ---
 

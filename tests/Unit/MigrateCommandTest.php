@@ -120,4 +120,100 @@ class MigrateCommandTest extends TestCase
         $this->assertStringContainsString('create_widgets_table', $status);
         $this->assertStringNotContainsString('Pending', $status);
     }
+
+    /**
+     * A project whose tables were created by importing the bundled .sql
+     * files by hand (docs/06-database.md) never gets a `migrations` table,
+     * so every bundled migration looked "Pending" even though its table
+     * already existed. It should be reported as "Untracked" instead.
+     */
+    public function test_status_reports_untracked_for_tables_created_outside_the_migration_runner(): void
+    {
+        require $this->projectDir . '/bootstrap/app.php';
+
+        // Simulate a hand-imported table: it exists, but no `migrations`
+        // table (and therefore no tracking row) exists at all.
+        Capsule::schema()->create('widgets', function ($table) {
+            $table->id();
+            $table->string('name');
+        });
+
+        ob_start();
+        (new MigrateStatusCommand())->execute([]);
+        $status = ob_get_clean();
+
+        $this->assertStringContainsString("\033[36mUntracked\033[0m 2099_01_01_000000_create_widgets_table  (table exists outside migration tracking — verify schema manually)", $status);
+        $this->assertStringContainsString('1 migration(s) reported as Untracked', $status);
+
+        // create_telegram_users_table's table doesn't exist yet, so it must
+        // still fall back to the ordinary Pending label.
+        $this->assertStringContainsString("\033[33mPending\033[0m   0001_01_01_000001_create_telegram_users_table", $status);
+    }
+
+    /**
+     * A migration that doesn't follow the `create_<table>_table` naming
+     * convention (e.g. one that only adds columns) can't be confidently
+     * mapped to a single target table, so it must stay Pending even when
+     * some unrelated table already exists.
+     */
+    public function test_status_falls_back_to_pending_when_target_table_cannot_be_determined(): void
+    {
+        file_put_contents(
+            $this->projectDir . '/database/migrations/2099_03_03_000000_add_something_to_gadgets_table.php',
+            <<<'PHP'
+            <?php
+            return new class {
+                public function up(): void {}
+                public function down(): void {}
+            };
+            PHP,
+        );
+
+        require $this->projectDir . '/bootstrap/app.php';
+
+        // The `gadgets` table exists, but this migration's name doesn't
+        // follow the create_<table>_table convention, so its target table
+        // can't be confidently derived — it must stay Pending, not Untracked.
+        Capsule::schema()->create('gadgets', function ($table) {
+            $table->id();
+            $table->string('name');
+        });
+
+        ob_start();
+        (new MigrateStatusCommand())->execute([]);
+        $status = ob_get_clean();
+
+        $this->assertStringContainsString("\033[33mPending\033[0m   2099_03_03_000000_add_something_to_gadgets_table", $status);
+        $this->assertStringNotContainsString('Untracked', $status);
+    }
+
+    /**
+     * ReportsDatabaseErrors::databaseConnectionErrorMessage() builds its
+     * message from the resolved connection config rather than a generic
+     * template — checked directly via reflection since triggering it through
+     * execute() would require an actually-unreachable database and ends in
+     * exit(1), which would kill the test runner.
+     */
+    public function test_database_connection_error_message_uses_resolved_config(): void
+    {
+        $capsule = new Capsule();
+        $capsule->addConnection([
+            'driver'   => 'mysql',
+            'host'     => '127.0.0.1',
+            'port'     => '3306',
+            'database' => 'my_bot',
+            'username' => 'root',
+            'password' => '',
+        ]);
+        $capsule->setAsGlobal();
+
+        $command = new MigrateCommand();
+        $method = new \ReflectionMethod($command, 'databaseConnectionErrorMessage');
+        $method->setAccessible(true);
+
+        $this->assertSame(
+            'Could not connect to database "my_bot" at 127.0.0.1:3306 — check DB_DATABASE / DB_HOST / DB_USERNAME / DB_PASSWORD in your .env',
+            $method->invoke($command),
+        );
+    }
 }

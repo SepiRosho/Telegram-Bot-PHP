@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot;
 
 use Devflow\TelegramBot\Exceptions\BotNotInitializedException;
+use Devflow\TelegramBot\Middleware\MiddlewareInterface;
 use Devflow\TelegramBot\Testing\FakeBot;
 use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\User;
@@ -51,104 +52,111 @@ class Bot
     // Route registration — typed for IDE autocomplete
     // -------------------------------------------------------------------------
 
-    public static function onCommand(string $command, callable|string $handler): BotInstance
+    public static function onCommand(string $command, callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onCommand($command, $handler);
+        return static::getInstance()->onCommand($command, $handler, $middleware);
     }
 
-    public static function onText(callable|string $handler): BotInstance
+    public static function onText(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onText($handler);
+        return static::getInstance()->onText($handler, $middleware);
     }
 
-    public static function onMessage(callable|string $handler): BotInstance
+    public static function onMessage(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onMessage($handler);
+        return static::getInstance()->onMessage($handler, $middleware);
     }
 
-    public static function onCallbackQuery(string|callable $patternOrHandler, callable|string|null $handler = null): BotInstance
-    {
-        return static::getInstance()->onCallbackQuery($patternOrHandler, $handler);
+    public static function onCallbackQuery(
+        string|callable $patternOrHandler,
+        callable|string|null $handler = null,
+        array $middleware = [],
+    ): BotInstance {
+        return static::getInstance()->onCallbackQuery($patternOrHandler, $handler, $middleware);
     }
 
-    public static function onPhoto(callable|string $handler): BotInstance
+    public static function onPhoto(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onPhoto($handler);
+        return static::getInstance()->onPhoto($handler, $middleware);
     }
 
-    public static function onDocument(callable|string $handler): BotInstance
+    public static function onDocument(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onDocument($handler);
+        return static::getInstance()->onDocument($handler, $middleware);
     }
 
-    public static function onInlineQuery(callable|string $handler): BotInstance
+    public static function onInlineQuery(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onInlineQuery($handler);
+        return static::getInstance()->onInlineQuery($handler, $middleware);
     }
 
-    public static function onChosenInlineResult(callable|string $handler): BotInstance
+    public static function onChosenInlineResult(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onChosenInlineResult($handler);
+        return static::getInstance()->onChosenInlineResult($handler, $middleware);
     }
 
-    public static function onEditedMessage(callable|string $handler): BotInstance
+    public static function onEditedMessage(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onEditedMessage($handler);
+        return static::getInstance()->onEditedMessage($handler, $middleware);
     }
 
-    public static function onChannelPost(callable|string $handler): BotInstance
+    public static function onChannelPost(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onChannelPost($handler);
+        return static::getInstance()->onChannelPost($handler, $middleware);
     }
 
-    public static function onPoll(callable|string $handler): BotInstance
+    public static function onPoll(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onPoll($handler);
+        return static::getInstance()->onPoll($handler, $middleware);
     }
 
-    public static function onPollAnswer(callable|string $handler): BotInstance
+    public static function onPollAnswer(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onPollAnswer($handler);
+        return static::getInstance()->onPollAnswer($handler, $middleware);
     }
 
-    public static function onMyChatMember(callable|string $handler): BotInstance
+    public static function onMyChatMember(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onMyChatMember($handler);
+        return static::getInstance()->onMyChatMember($handler, $middleware);
     }
 
-    public static function onChatMember(callable|string $handler): BotInstance
+    public static function onChatMember(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onChatMember($handler);
+        return static::getInstance()->onChatMember($handler, $middleware);
     }
 
-    public static function onChatJoinRequest(callable|string $handler): BotInstance
+    public static function onChatJoinRequest(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onChatJoinRequest($handler);
+        return static::getInstance()->onChatJoinRequest($handler, $middleware);
     }
 
-    public static function onShippingQuery(callable|string $handler): BotInstance
+    public static function onShippingQuery(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onShippingQuery($handler);
+        return static::getInstance()->onShippingQuery($handler, $middleware);
     }
 
-    public static function onPreCheckoutQuery(callable|string $handler): BotInstance
+    public static function onPreCheckoutQuery(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onPreCheckoutQuery($handler);
+        return static::getInstance()->onPreCheckoutQuery($handler, $middleware);
     }
 
-    public static function onUpdate(callable|string $handler): BotInstance
+    public static function onUpdate(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onUpdate($handler);
+        return static::getInstance()->onUpdate($handler, $middleware);
     }
 
-    public static function onStep(string $step, callable|string $handler, array $types = ['text']): BotInstance
-    {
-        return static::getInstance()->onStep($step, $handler, $types);
+    public static function onStep(
+        string $step,
+        callable|string $handler,
+        array $types = ['text'],
+        array $middleware = [],
+    ): BotInstance {
+        return static::getInstance()->onStep($step, $handler, $types, $middleware);
     }
 
-    public static function onUnknownCommand(callable|string $handler): BotInstance
+    public static function onUnknownCommand(callable|string $handler, array $middleware = []): BotInstance
     {
-        return static::getInstance()->onUnknownCommand($handler);
+        return static::getInstance()->onUnknownCommand($handler, $middleware);
     }
 
     public static function loadHandlers(array|string $handlers): BotInstance
@@ -156,7 +164,7 @@ class Bot
         return static::getInstance()->loadHandlers($handlers);
     }
 
-    public static function use(callable|string $middleware): BotInstance
+    public static function use(callable|string|MiddlewareInterface $middleware): BotInstance
     {
         return static::getInstance()->use($middleware);
     }

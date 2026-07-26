@@ -21,8 +21,13 @@ class FakeUser
         ?string $last_name = null,
         ?string $username = null,
         ?string $language_code = null,
+        int $id = 0,
     ) {
         $this->attributes = [
+            // Surrogate key, assigned by FakeUserRepository. Real bots put
+            // their own tables behind foreign keys to telegram_users.id, so
+            // without it no fake user can be related to anything.
+            'id'            => $id,
             'telegram_id'   => $telegram_id,
             'chat_id'       => $chat_id,
             'first_name'    => $first_name,

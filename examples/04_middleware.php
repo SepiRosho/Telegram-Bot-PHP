@@ -9,6 +9,7 @@
  *  - Short-circuiting (stopping the chain)
  *  - DB-backed rate limiting via RateLimitMiddleware
  *  - Chaining multiple middleware
+ *  - Per-route middleware (admin-only guard applied to a single command)
  */
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -58,7 +59,7 @@ $adminOnly = function (Context $ctx, callable $next): void {
     $next($ctx);
 };
 
-// ---- Register middleware (runs for every update) ----------------------------
+// ---- Register global middleware (runs for every update) ---------------------
 
 Bot::use(LogMiddleware::class);
 Bot::use(BanCheckMiddleware::class);
@@ -73,11 +74,23 @@ Bot::onCommand('start', function (Context $ctx) {
     $ctx->reply('Welcome! You passed all middleware checks.');
 });
 
-// Admin-only command — wrap the handler with the $adminOnly closure
-Bot::onCommand('broadcast', function (Context $ctx) use ($adminOnly) {
-    $adminOnly($ctx, function (Context $ctx) {
-        $ctx->reply('Broadcast feature coming soon!');
-    });
-});
+// Admin-only command — every registration method accepts an optional trailing
+// array of route-scoped middleware, applied only to this one route on top of
+// the global middleware registered above via Bot::use(). This is the
+// preferred way to guard a handful of admin routes, instead of checking
+// $ctx->user()?->isAdmin() inline or wrapping the handler by hand.
+Bot::onCommand('broadcast', function (Context $ctx) {
+    $ctx->reply('Broadcast feature coming soon!');
+}, [$adminOnly]);
+
+// Per-route middleware composes: stack the closure with a tighter rate limit
+// for this specific command, using named arguments for readability.
+Bot::onCommand(
+    'stats',
+    function (Context $ctx) {
+        $ctx->reply('📊 Stats: all systems normal.');
+    },
+    middleware: [$adminOnly, new RateLimitMiddleware(maxHits: 3, windowSeconds: 60)],
+);
 
 Bot::run();

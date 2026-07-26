@@ -77,6 +77,27 @@ Then run `vendor/bin/devflow migrate` again.
 
 If you'd rather not use the migration runner, the equivalent `.sql` files still ship under `vendor/devflow/telegram-bot/database/migrations/*.sql` and can be imported directly (phpMyAdmin's Import tab, or `mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/telegram_users.sql`). Note this path won't track schema changes across library upgrades the way `devflow migrate` does.
 
+> **Warning:** Tables created this way are invisible to the migration runner's tracking table (`migrations`) — it has no record that they were ever applied. `vendor/bin/devflow migrate:status` will report the bundled migrations as pending/untracked even though the tables already exist, and running `vendor/bin/devflow migrate` afterward can then try to create tables that are already there. If you mix the two approaches (or aren't sure which one a given environment used), write your own migrations defensively — guard with `hasTable()`/`hasColumn()` before creating, the way the bundled migrations already do:
+>
+> ```php
+> use Illuminate\Database\Capsule\Manager as Capsule;
+>
+> return new class {
+>     public function up(): void
+>     {
+>         if (Capsule::schema()->hasTable('telegram_users')) {
+>             return;
+>         }
+>
+>         Capsule::schema()->create('telegram_users', function ($table) {
+>             // ...
+>         });
+>     }
+> };
+> ```
+>
+> The safest fix is to pick one path per environment and stick with it — prefer `devflow migrate` going forward, and only use the raw `.sql` import for a fresh database that has never seen either.
+
 ---
 
 ## Step 3: Fill in your .env credentials
@@ -290,6 +311,24 @@ Broadcast::create(['message' => 'Hello!', 'notify_chat_id' => $adminChatId]);
 ```
 
 Supported `type` values: `text` (default), `photo`, `document`, `video`, `audio`, `voice`, `animation`, `copy`. Progress (`sent_count`/`failed_count`/`status`) is written back to the row as the run proceeds, so an admin panel can poll it live.
+
+### Running broadcasts in production
+
+`vendor/bin/devflow broadcast:run` processes whatever is currently `pending` and then exits — it isn't a daemon. In production, nobody is going to SSH in and run it by hand every time an admin queues a broadcast from inside Telegram, so schedule it instead. A cron entry that checks every minute is the simplest reliable setup:
+
+```
+* * * * * cd /path/to/bot && vendor/bin/devflow broadcast:run >> logs/broadcast.log 2>&1
+```
+
+Since the command exits immediately when there's nothing `pending`, running it every minute costs nothing when idle. If a broadcast is already `running` when cron fires again a minute later, the new invocation only picks up rows still `pending` — it won't double-send an in-progress one.
+
+Control the send rate with the `BROADCAST_RATE` env var (messages/second, default 25, clamped to 1–30 to stay under Telegram's hard limit):
+
+```
+BROADCAST_RATE=20
+```
+
+On Windows (no cron), use **Task Scheduler** with an action equivalent to the cron line above, e.g. `php vendor\bin\devflow broadcast:run` with "Start in" set to your project root, on a 1-minute trigger.
 
 ---
 

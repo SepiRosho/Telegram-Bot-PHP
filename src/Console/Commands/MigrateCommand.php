@@ -2,6 +2,7 @@
 
 namespace Devflow\TelegramBot\Console\Commands;
 
+use Devflow\TelegramBot\Console\Commands\Concerns\ReportsDatabaseErrors;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 /**
@@ -13,6 +14,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
  */
 class MigrateCommand
 {
+    use ReportsDatabaseErrors;
+
     public function execute(array $args): void
     {
         $cwd = getcwd();
@@ -30,30 +33,34 @@ class MigrateCommand
 
         require $bootstrap;
 
-        $this->ensureMigrationsTable();
+        try {
+            $this->ensureMigrationsTable();
 
-        $pending = $this->pendingMigrations($cwd);
+            $pending = $this->pendingMigrations($cwd);
 
-        if ($pending === []) {
-            $this->line('Nothing to migrate.');
-            return;
-        }
+            if ($pending === []) {
+                $this->line('Nothing to migrate.');
+                return;
+            }
 
-        $batch = (int) (Capsule::table('migrations')->max('batch') ?? 0) + 1;
+            $batch = (int) (Capsule::table('migrations')->max('batch') ?? 0) + 1;
 
-        foreach ($pending as $path) {
-            $name = basename($path, '.php');
-            $this->line("Migrating: {$name}");
+            foreach ($pending as $path) {
+                $name = basename($path, '.php');
+                $this->line("Migrating: {$name}");
 
-            (require $path)->up();
+                (require $path)->up();
 
-            Capsule::table('migrations')->insert([
-                'migration' => $name,
-                'batch'     => $batch,
-                'run_at'    => date('Y-m-d H:i:s'),
-            ]);
+                Capsule::table('migrations')->insert([
+                    'migration' => $name,
+                    'batch'     => $batch,
+                    'run_at'    => date('Y-m-d H:i:s'),
+                ]);
 
-            $this->success("Migrated:  {$name}");
+                $this->success("Migrated:  {$name}");
+            }
+        } catch (\PDOException $e) {
+            $this->failOnDatabaseError($e);
         }
     }
 
