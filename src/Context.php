@@ -2,10 +2,12 @@
 
 namespace Devflow\TelegramBot;
 
+use Devflow\TelegramBot\Api\InputFile;
 use Devflow\TelegramBot\Api\TelegramApi;
 use Devflow\TelegramBot\Exceptions\TelegramApiException;
 use Devflow\TelegramBot\Support\Lang;
 use Devflow\TelegramBot\Types\CallbackQuery;
+use Devflow\TelegramBot\Types\Chat;
 use Devflow\TelegramBot\Types\Message;
 use Devflow\TelegramBot\Types\Update;
 use Devflow\TelegramBot\Types\User;
@@ -73,6 +75,40 @@ class Context
         return $this->message()?->text;
     }
 
+    // -------------------------------------------------------------------------
+    // Chat type
+    // -------------------------------------------------------------------------
+
+    /**
+     * The Chat this update happened in, or null for update types that carry no
+     * chat (inline queries, poll answers, pre-checkout queries, ...).
+     */
+    public function chat(): ?Chat
+    {
+        return $this->update->chat();
+    }
+
+    /** 'private' | 'group' | 'supergroup' | 'channel', or null when the update has no chat. */
+    public function chatType(): ?string
+    {
+        return $this->update->chatType();
+    }
+
+    public function isPrivate(): bool
+    {
+        return $this->chatType() === 'private';
+    }
+
+    public function isGroup(): bool
+    {
+        return in_array($this->chatType(), ['group', 'supergroup'], true);
+    }
+
+    public function isChannel(): bool
+    {
+        return $this->chatType() === 'channel';
+    }
+
     public function callbackData(): ?string
     {
         return $this->update->callbackQuery?->data;
@@ -87,32 +123,32 @@ class Context
         return $this->api->sendMessage($this->chatId(), $text, $options);
     }
 
-    public function replyWithPhoto(string $photo, array $options = []): Message
+    public function replyWithPhoto(string|InputFile $photo, array $options = []): Message
     {
         return $this->api->sendPhoto($this->chatId(), $photo, $options);
     }
 
-    public function replyWithDocument(string $document, array $options = []): Message
+    public function replyWithDocument(string|InputFile $document, array $options = []): Message
     {
         return $this->api->sendDocument($this->chatId(), $document, $options);
     }
 
-    public function replyWithVideo(string $video, array $options = []): Message
+    public function replyWithVideo(string|InputFile $video, array $options = []): Message
     {
         return $this->api->sendVideo($this->chatId(), $video, $options);
     }
 
-    public function replyWithAudio(string $audio, array $options = []): Message
+    public function replyWithAudio(string|InputFile $audio, array $options = []): Message
     {
         return $this->api->sendAudio($this->chatId(), $audio, $options);
     }
 
-    public function replyWithVoice(string $voice, array $options = []): Message
+    public function replyWithVoice(string|InputFile $voice, array $options = []): Message
     {
         return $this->api->sendVoice($this->chatId(), $voice, $options);
     }
 
-    public function replyWithSticker(string $sticker, array $options = []): Message
+    public function replyWithSticker(string|InputFile $sticker, array $options = []): Message
     {
         return $this->api->sendSticker($this->chatId(), $sticker, $options);
     }

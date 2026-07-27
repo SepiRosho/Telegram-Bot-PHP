@@ -25,6 +25,12 @@ class NewProjectCommand
         $this->makeDirectories($root);
         $this->writeFiles($root, $name);
 
+        // Generated rather than templated, so the manifest always describes the
+        // library version actually installed.
+        if ((new AiManifestCommand())->writeTo($root) !== null) {
+            $this->line("  \033[32m+\033[0m .ai/api.json");
+        }
+
         echo "\n";
         $this->success("Project [{$name}] created successfully!");
         echo "\n";
@@ -92,6 +98,12 @@ class NewProjectCommand
             'app/Models/User.php'                       => $this->userModel(),
             'lang/en.php'                                => $this->langEn(),
             'lang/fa.php'                                => $this->langFa(),
+            // Coding agents read AGENTS.md (Cursor, Codex) or CLAUDE.md
+            // (Claude Code) from the project root. Shipping both here means an
+            // agent working on this bot never has to read the library's source
+            // to learn the conventions.
+            'AGENTS.md'                                  => $this->agentsMd($projectName),
+            'CLAUDE.md'                                  => $this->claudeMd(),
             'logs/.gitignore'                           => "*.log\n",
             'app/Callbacks/.gitkeep'                    => '',
             'app/Flows/.gitkeep'                        => '',
@@ -256,15 +268,25 @@ class NewProjectCommand
         // lang_path: directory of per-locale array files (lang/en.php, lang/fa.php, ...).
         // Use $ctx->t('key', ['name' => ...]) in handlers; $ctx->locale() resolves
         // the stored user preference, falling back to Telegram's client language.
+        // ─── Chat types ────────────────────────────────────────────────────────
+        // allowed_chat_types restricts every handler to private (one-to-one)
+        // chats. This is the safe default: without it, anyone can add the bot
+        // to a group and /start there, which registers a telegram_users row
+        // whose chat_id is the *group's* id — inflating your user count and
+        // sending every future broadcast into that group.
+        //
+        // To serve groups too, add 'group' and 'supergroup' here, or expose
+        // just a few routes with Bot::chatTypes([...], fn() => ...).
         Bot::init(env('BOT_TOKEN'), [
-            'database'       => true,
-            'webhook_secret' => env('WEBHOOK_SECRET') ?: null,
-            'proxy'          => env('PROXY_URL') ?: null,
-            'lang_path'      => __DIR__ . '/../lang',
-            'default_locale' => 'en',
+            'database'           => true,
+            'webhook_secret'     => env('WEBHOOK_SECRET') ?: null,
+            'proxy'              => env('PROXY_URL') ?: null,
+            'lang_path'          => __DIR__ . '/../lang',
+            'default_locale'     => 'en',
+            'allowed_chat_types' => ['private'],
             // Point at your own model (see app/Models/User.php) to add
             // columns/relationships/scopes on top of the base TelegramUser.
-            'user_model'     => \App\Models\User::class,
+            'user_model'         => \App\Models\User::class,
         ]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
@@ -489,6 +511,26 @@ class NewProjectCommand
 
                 Bot::onCommand('help', \App\Commands\HelpCommand::class);
 
+                // ─── Group guard ──────────────────────────────────────────────────
+                // 'allowed_chat_types' => ['private'] in bootstrap/app.php keeps
+                // every handler in this file private-only. my_chat_member is
+                // deliberately exempt from that filter, because it is the one
+                // update that tells a bot it was added somewhere — which is
+                // exactly what a private-only bot needs in order to leave again.
+                //
+                // Delete this handler if you later want the bot to stay in groups.
+                Bot::onMyChatMember(function (Context $ctx) {
+                    $chat = $ctx->chat();
+
+                    if ($chat === null || $chat->isPrivate()) {
+                        return;
+                    }
+
+                    if ($ctx->update()->myChatMember?->userJoined()) {
+                        Bot::leaveChat($chat->id);
+                    }
+                });
+
                 // ─── Fallback ─────────────────────────────────────────────────────
                 Bot::onText(function (Context $ctx) {
                     // Reply-keyboard buttons arrive as plain text in whatever
@@ -599,6 +641,90 @@ class NewProjectCommand
         {
         }
         PHP;
+    }
+
+    /**
+     * Project-scoped agent brief. Deliberately about *this project's* layout
+     * and conventions, deferring the full library surface to the copy in the
+     * package — duplicating that here would rot on the next library upgrade.
+     */
+    private function agentsMd(string $projectName): string
+    {
+        return <<<MARKDOWN
+        # AGENTS.md — {$projectName}
+
+        A Telegram bot built on [devflow/telegram-bot](https://packagist.org/packages/devflow/telegram-bot).
+
+        ## Read this first
+
+        The complete library reference is **`vendor/devflow/telegram-bot/AGENTS.md`** — routing,
+        Context, config, keyboards, flows, i18n, middleware, database schema, CLI, testing.
+        Read that file rather than browsing `vendor/devflow/telegram-bot/src/`.
+
+        Every method signature is in `.ai/api.json` (regenerate: `vendor/bin/devflow ai:manifest`).
+
+        ## Layout
+
+        ```
+        bootstrap/app.php        Bot::init(), database, middleware, loadHandlers()  ← wire things here
+        bootstrap/helpers.php    env(), saveLog(), botLog()
+        public/webhook.php       Entry point; always returns HTTP 200
+        app/Commands/            One class per command (implements HandlerInterface)
+        app/Callbacks/           Callback-query handlers
+        app/Handlers/            Handler groups with a static register()
+        app/Middleware/          MiddlewareInterface implementations
+        app/Flows/               Multi-step wizards (onStep)
+        app/Models/User.php      Extends TelegramUser — add your columns/relations here
+        app/Services/            Business logic
+        database/migrations/     devflow make:migration writes here
+        lang/en.php, lang/fa.php Translation keys for \$ctx->t()
+        logs/                    Daily log files
+        ```
+
+        ## Conventions for this project
+
+        - **Private chats only.** `bootstrap/app.php` sets `'allowed_chat_types' => ['private']`, and
+          `UserHandlers` leaves any group the bot is added to. To support groups, change that config
+          and delete the `onMyChatMember` guard.
+        - **Never `json_encode()`** anything passed to the library — `reply_markup` and every
+          `\$options` value must be a plain PHP array. `Keyboard::*` already returns arrays.
+        - **All user-facing strings go in `lang/`**, reached via `\$ctx->t('key')`. Never hardcode
+          text in a handler; add the key to *both* `lang/en.php` and `lang/fa.php`.
+        - **New handler groups** get a static `register()` and must be added to `Bot::loadHandlers()`
+          in `bootstrap/app.php`.
+        - **New classes** need `composer dump-autoload`.
+        - **Schema changes** go through `vendor/bin/devflow make:migration <snake_case_name>`, never
+          by editing the database by hand.
+
+        ## Commands
+
+        ```bash
+        vendor/bin/devflow doctor              # diagnose env, token, DB, routes, webhook — run this first
+        vendor/bin/devflow routes              # list routes in evaluation order
+        vendor/bin/devflow poll                # local dev without a webhook
+        vendor/bin/devflow migrate             # run pending migrations
+        vendor/bin/devflow make:command <Name>
+        vendor/bin/devflow make:migration <name>
+        ```
+
+        ## Before finishing a change
+
+        1. `vendor/bin/devflow routes` — confirm the new route is registered and not shadowed.
+        2. `vendor/bin/devflow doctor` — confirm nothing regressed.
+        3. Check both `lang/` files have every key you referenced.
+
+        MARKDOWN;
+    }
+
+    private function claudeMd(): string
+    {
+        return <<<'MARKDOWN'
+        See [AGENTS.md](AGENTS.md) for this project's layout, conventions and commands.
+
+        The full library reference is `vendor/devflow/telegram-bot/AGENTS.md`; every method
+        signature is in `.ai/api.json`. Read those instead of browsing the library's `src/`.
+
+        MARKDOWN;
     }
 
     private function langEn(): string

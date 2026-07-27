@@ -1,7 +1,7 @@
 {
     "name": "devflow/telegram-bot",
     "description": "A clean PHP library for building Telegram bots with a static facade, fluent routing, and premade database schemas.",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "type": "library",
     "license": "MIT",
     "keywords": ["telegram", "bot", "api", "webhook", "laravel", "scaffold"],

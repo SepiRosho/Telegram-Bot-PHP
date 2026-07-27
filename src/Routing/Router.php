@@ -12,8 +12,27 @@ use Devflow\TelegramBot\Types\Update;
 
 class Router
 {
+    /**
+     * Route types that bypass the chat-type filter entirely, because they can
+     * only ever fire outside a private chat — filtering them to 'private'
+     * would make registering them meaningless. `my_chat_member` matters most:
+     * it is how a bot learns it was added to a group, which is exactly the
+     * event a private-only bot needs in order to leave again.
+     */
+    public const CHAT_TYPE_EXEMPT = [
+        'channel_post',
+        'edited_channel_post',
+        'my_chat_member',
+        'chat_member',
+        'chat_join_request',
+        'chat_boost',
+        'removed_chat_boost',
+        'message_reaction_count',
+    ];
+
     private array $routes = [];
     private array $middlewares = [];
+    private ?array $chatTypeScope = null;
 
     public function addRoute(
         string $type,
@@ -21,13 +40,63 @@ class Router
         callable|string $handler,
         array $types = ['text'],
         array $middleware = [],
+        ?array $chatTypes = null,
     ): void {
-        $this->routes[] = new Route($type, $pattern, $handler, $types, $middleware);
+        $this->routes[] = new Route(
+            $type,
+            $pattern,
+            $handler,
+            $types,
+            $middleware,
+            $chatTypes ?? $this->chatTypeScope,
+        );
+    }
+
+    /**
+     * Register routes that accept a different set of chat types than the
+     * bot's global `allowed_chat_types` default:
+     *
+     *   Bot::chatTypes(['group', 'supergroup'], function () {
+     *       Bot::onCommand('stats', $handler);
+     *   });
+     *
+     * Scoped rather than a per-method argument so this stays one method
+     * instead of a `chatTypes:` parameter on all ~30 on*() signatures. The
+     * previous scope is restored even if the callback throws.
+     */
+    public function withChatTypes(?array $chatTypes, callable $register): void
+    {
+        $previous = $this->chatTypeScope;
+        $this->chatTypeScope = $chatTypes;
+
+        try {
+            $register();
+        } finally {
+            $this->chatTypeScope = $previous;
+        }
     }
 
     public function addMiddleware(callable|string|MiddlewareInterface $middleware): void
     {
         $this->middlewares[] = $middleware;
+    }
+
+    /**
+     * Every registered route, in registration order — what `devflow routes`
+     * and `devflow doctor` introspect. Dispatch uses orderedRoutes() instead,
+     * which promotes step routes.
+     *
+     * @return list<Route>
+     */
+    public function routes(): array
+    {
+        return $this->routes;
+    }
+
+    /** @return list<callable|string|MiddlewareInterface> */
+    public function middlewares(): array
+    {
+        return $this->middlewares;
     }
 
     public function dispatch(Update $update, TelegramApi $api, array $config = [], ?object $userRepository = null): void
@@ -36,6 +105,10 @@ class Router
         $debug = $config['debug'] ?? false;
 
         foreach ($this->orderedRoutes($config) as $route) {
+            if (!$this->matchesChatType($route, $update, $config)) {
+                continue;
+            }
+
             // Non-step routes: check without context first (cheap)
             if ($route->type !== 'step' && !$this->matches($route, $update)) {
                 continue;
@@ -63,7 +136,22 @@ class Router
         }
 
         if ($debug) {
-            Log::save("No route matched update #{$update->updateId} (type: {$update->type()})", 'DEBUG');
+            $allowed  = $config['allowed_chat_types'] ?? null;
+            $chatType = $update->chatType();
+            $reason   = '';
+
+            // Distinguish "nothing handles this" from "the chat filter dropped
+            // it" — otherwise a private-only bot silently ignoring a group
+            // looks identical to a missing handler.
+            if ($allowed !== null && $chatType !== null && !in_array($chatType, $allowed, true)) {
+                $reason = " — chat type \"{$chatType}\" is not in allowed_chat_types ["
+                    . implode(', ', $allowed) . ']';
+            }
+
+            Log::save(
+                "No route matched update #{$update->updateId} (type: {$update->type()}){$reason}",
+                'DEBUG',
+            );
         }
 
         $this->clearPendingCallback($update, $api, $config);
@@ -122,12 +210,49 @@ class Router
         }
     }
 
+    /**
+     * Gate a route on the chat the update came from.
+     *
+     * The effective allowlist is the route's own `chatTypes` (set via
+     * withChatTypes()) falling back to the global `allowed_chat_types` config.
+     * Unset — the default — means no filtering at all, so existing bots that
+     * never configured this keep serving every chat type exactly as before;
+     * the scaffold opts new projects in explicitly instead.
+     *
+     * Two things always pass: updates with no chat to test (inline queries,
+     * poll answers, pre-checkout queries) and the CHAT_TYPE_EXEMPT route
+     * types, which are group/channel-only by nature.
+     */
+    private function matchesChatType(Route $route, Update $update, array $config): bool
+    {
+        $allowed = $route->chatTypes ?? $config['allowed_chat_types'] ?? null;
+
+        if ($allowed === null || $allowed === [] || in_array('*', $allowed, true)) {
+            return true;
+        }
+
+        if (in_array($route->type, self::CHAT_TYPE_EXEMPT, true)) {
+            return true;
+        }
+
+        $chatType = $update->chatType();
+
+        // No chat on this update — nothing to filter against, so let it run.
+        if ($chatType === null) {
+            return true;
+        }
+
+        return in_array($chatType, $allowed, true);
+    }
+
     private function matches(Route $route, Update $update): bool
     {
         return match ($route->type) {
             'command'             => $this->matchesCommand($route->pattern, $update),
             'unknown_command'     => $this->matchesUnknownCommand($update),
-            'text'                => $update->message?->text !== null && !$update->message->isCommand(),
+            'text'                => $update->message?->text !== null
+                && !$update->message->isCommand()
+                && $this->matchesPattern($route->pattern, $update->message->text),
             'message'             => $update->message !== null,
             'edited_message'      => $update->editedMessage !== null,
             'channel_post'        => $update->channelPost !== null,
@@ -259,11 +384,28 @@ class Router
         if ($pattern === '*') {
             return true;
         }
+        if ($this->isRegex($pattern)) {
+            return (bool) preg_match($pattern, $value);
+        }
         if (!str_contains($pattern, '*')) {
             return $pattern === $value;
         }
         $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/';
         return (bool) preg_match($regex, $value);
+    }
+
+    /**
+     * A pattern counts as a regex only if PCRE itself accepts it, so a literal
+     * value that merely starts with '/' still compares as a literal rather
+     * than blowing up with a "no ending delimiter" warning.
+     */
+    private function isRegex(string $pattern): bool
+    {
+        if (strlen($pattern) < 2 || $pattern[0] !== '/') {
+            return false;
+        }
+
+        return @preg_match($pattern, '') !== false;
     }
 
     /**

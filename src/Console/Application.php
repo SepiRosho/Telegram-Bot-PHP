@@ -2,25 +2,31 @@
 
 namespace Devflow\TelegramBot\Console;
 
+use Devflow\TelegramBot\Console\Commands\AiManifestCommand;
 use Devflow\TelegramBot\Console\Commands\BroadcastRunCommand;
+use Devflow\TelegramBot\Console\Commands\DoctorCommand;
 use Devflow\TelegramBot\Console\Commands\MakeCallbackCommand;
 use Devflow\TelegramBot\Console\Commands\MakeFlowCommand;
 use Devflow\TelegramBot\Console\Commands\MakeHandlerCommand;
 use Devflow\TelegramBot\Console\Commands\MakeMiddlewareCommand;
+use Devflow\TelegramBot\Console\Commands\MakeMigrationCommand;
 use Devflow\TelegramBot\Console\Commands\MakeServiceCommand;
 use Devflow\TelegramBot\Console\Commands\MakeTextCommand;
 use Devflow\TelegramBot\Console\Commands\MigrateCommand;
 use Devflow\TelegramBot\Console\Commands\MigrateStatusCommand;
 use Devflow\TelegramBot\Console\Commands\NewProjectCommand;
 use Devflow\TelegramBot\Console\Commands\PollCommand;
+use Devflow\TelegramBot\Console\Commands\RoutesCommand;
 use Devflow\TelegramBot\Console\Commands\WebhookCommand;
 
 class Application
 {
-    private const VERSION = '1.10.0';
+    private const VERSION = '1.11.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
+        'doctor'            => DoctorCommand::class,
+        'routes'            => RoutesCommand::class,
         'poll'              => PollCommand::class,
         'broadcast:run'     => BroadcastRunCommand::class,
         'migrate'           => MigrateCommand::class,
@@ -34,6 +40,8 @@ class Application
         'make:flow'         => MakeFlowCommand::class,
         'make:text'         => MakeTextCommand::class,
         'make:service'      => MakeServiceCommand::class,
+        'make:migration'    => MakeMigrationCommand::class,
+        'ai:manifest'       => AiManifestCommand::class,
     ];
 
     public function run(array $argv): void
@@ -81,6 +89,10 @@ class Application
   \033[33mScaffold a new project:\033[0m
     \033[32mnew\033[0m <project-name>           Create a new standalone bot project
 
+  \033[33mDiagnostics (run inside your project):\033[0m
+    \033[32mdoctor\033[0m                        Check env, token, database, routes and webhook in one run
+    \033[32mroutes\033[0m                        List every registered route in evaluation order
+
   \033[33mRuntime commands (run inside your project):\033[0m
     \033[32mpoll\033[0m                          Start long-polling mode (local dev, no webhook)
     \033[32mbroadcast:run\033[0m                 Process pending broadcasts from the DB queue
@@ -97,9 +109,16 @@ class Application
     \033[32mmake:flow\033[0m <ClassName>         Generate a wizard flow       (app/Flows/)
     \033[32mmake:text\033[0m <ClassName>         Generate a localized text class (app/Texts/)
     \033[32mmake:service\033[0m <ClassName>      Generate a service class     (app/Services/)
+    \033[32mmake:migration\033[0m <name>         Generate a migration        (database/migrations/)
+
+  \033[33mAI tooling:\033[0m
+    \033[32mai:manifest\033[0m                   Regenerate .ai/api.json — a machine-readable index
+                                  of the whole library surface for coding agents
 
   \033[33mExamples:\033[0m
     vendor/bin/devflow new my-telegram-bot
+    vendor/bin/devflow doctor
+    vendor/bin/devflow routes
     vendor/bin/devflow poll
     vendor/bin/devflow webhook:set https://example.com/public/webhook.php
     vendor/bin/devflow migrate
@@ -108,6 +127,7 @@ class Application
     vendor/bin/devflow make:middleware RateLimitMiddleware
     vendor/bin/devflow make:flow RegistrationFlow
     vendor/bin/devflow make:service NotificationService
+    vendor/bin/devflow make:migration create_orders_table
 
 HELP;
     }

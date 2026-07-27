@@ -1,0 +1,1623 @@
+{
+    "library": "devflow/telegram-bot",
+    "version": "1.11.0",
+    "generated_at": "2026-07-27T18:08:44+00:00",
+    "generator": "vendor/bin/devflow ai:manifest",
+    "rules": [
+        "Every $options array (including reply_markup) must be a PHP array. Never call json_encode() yourself — HttpClient encodes it, and pre-encoding produces a double-encoded value Telegram silently ignores.",
+        "Keyboard::inline()/reply()/button()/url() already return arrays. Pass their result straight to reply_markup.",
+        "Step routes are evaluated before all other route types by default (step_routes_first), so a broad onText() cannot swallow a mid-flow message.",
+        "onStep() requires database => true. Without it, $ctx->step() is always null and no step route matches.",
+        "Set allowed_chat_types => ['private'] unless the bot is meant to work in groups. Without it a group /start registers a telegram_users row whose chat_id is the group, which corrupts broadcasts.",
+        "Bot::use() accepts a class name, a closure, or a constructed MiddlewareInterface instance.",
+        "Use InputFile::path() / InputFile::contents() to send a local file. A plain string is treated as a file_id or a URL.",
+        "Handler groups are plain classes with a static register() method, listed in Bot::loadHandlers([...]).",
+        "Bot::fake() swaps the static instance for an in-memory one; production register() code runs against it unmodified."
+    ],
+    "config": {
+        "database": {
+            "type": "bool",
+            "default": false,
+            "description": "Enables DB user auto-registration, $ctx->user() and flow state. Required by onStep()."
+        },
+        "webhook_secret": {
+            "type": "?string",
+            "default": null,
+            "description": "Validates the X-Telegram-Bot-Api-Secret-Token header. Must match setWebhook's secret_token."
+        },
+        "proxy": {
+            "type": "?string",
+            "default": null,
+            "description": "HTTP or SOCKS5 proxy URL, e.g. socks5://host:1080."
+        },
+        "lang_path": {
+            "type": "?string",
+            "default": null,
+            "description": "Directory of per-locale {locale}.php files for Support\\Lang."
+        },
+        "default_locale": {
+            "type": "string",
+            "default": "en",
+            "description": "Fallback locale when no user preference or client language resolves."
+        },
+        "user_model": {
+            "type": "class-string",
+            "default": "Devflow\\TelegramBot\\Database\\Models\\TelegramUser",
+            "description": "Custom Eloquent model for UserRepository."
+        },
+        "user_defaults": {
+            "type": "?callable",
+            "default": null,
+            "description": "callable(Update): array — extra attributes merged in when a user row is first created."
+        },
+        "debug": {
+            "type": "bool",
+            "default": false,
+            "description": "Logs route match/no-match decisions on every dispatch, including chat-type filter drops."
+        },
+        "step_routes_first": {
+            "type": "bool",
+            "default": true,
+            "description": "Evaluate all step routes before other route types, independent of registration order."
+        },
+        "auto_answer_callbacks": {
+            "type": "bool",
+            "default": true,
+            "description": "Auto-calls answerCallbackQuery when no route matched a callback query, clearing the tap spinner."
+        },
+        "allowed_chat_types": {
+            "type": "?array",
+            "default": null,
+            "description": "Restricts routes to these chat types, e.g. ['private']. null means no filtering. Updates with no chat, and group/channel-only update types like my_chat_member, always pass."
+        },
+        "max_retries": {
+            "type": "int",
+            "default": 2,
+            "description": "How many times to retry after a 429, honouring Telegram's retry_after. Uploads are never retried."
+        },
+        "max_retry_after": {
+            "type": "int",
+            "default": 60,
+            "description": "Longest retry_after (seconds) worth waiting on before throwing instead."
+        },
+        "timeout": {
+            "type": "int",
+            "default": 30,
+            "description": "HTTP timeout in seconds."
+        }
+    },
+    "routes": [
+        {
+            "method": "onBusinessConnection",
+            "router_type": "business_connection",
+            "signature": "onBusinessConnection(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onBusinessMessage",
+            "router_type": "business_message",
+            "signature": "onBusinessMessage(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onCallbackQuery",
+            "router_type": "callback_query",
+            "signature": "onCallbackQuery(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onChannelPost",
+            "router_type": "channel_post",
+            "signature": "onChannelPost(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onChatBoost",
+            "router_type": "chat_boost",
+            "signature": "onChatBoost(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onChatJoinRequest",
+            "router_type": "chat_join_request",
+            "signature": "onChatJoinRequest(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onChatMember",
+            "router_type": "chat_member",
+            "signature": "onChatMember(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onChosenInlineResult",
+            "router_type": "chosen_inline_result",
+            "signature": "onChosenInlineResult(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onCommand",
+            "router_type": "command",
+            "signature": "onCommand(string $command, callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onDeletedBusinessMessages",
+            "router_type": "deleted_business_messages",
+            "signature": "onDeletedBusinessMessages(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onDocument",
+            "router_type": "document",
+            "signature": "onDocument(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onEditedBusinessMessage",
+            "router_type": "edited_business_message",
+            "signature": "onEditedBusinessMessage(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onEditedMessage",
+            "router_type": "edited_message",
+            "signature": "onEditedMessage(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onGuestMessage",
+            "router_type": "guest_message",
+            "signature": "onGuestMessage(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onInlineQuery",
+            "router_type": "inline_query",
+            "signature": "onInlineQuery(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onManagedBot",
+            "router_type": "managed_bot",
+            "signature": "onManagedBot(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onMessage",
+            "router_type": "message",
+            "signature": "onMessage(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onMessageReaction",
+            "router_type": "message_reaction",
+            "signature": "onMessageReaction(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onMessageReactionCount",
+            "router_type": "message_reaction_count",
+            "signature": "onMessageReactionCount(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onMyChatMember",
+            "router_type": "my_chat_member",
+            "signature": "onMyChatMember(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onPhoto",
+            "router_type": "photo",
+            "signature": "onPhoto(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onPoll",
+            "router_type": "poll",
+            "signature": "onPoll(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onPollAnswer",
+            "router_type": "poll_answer",
+            "signature": "onPollAnswer(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onPreCheckoutQuery",
+            "router_type": "pre_checkout_query",
+            "signature": "onPreCheckoutQuery(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onPurchasedPaidMedia",
+            "router_type": "purchased_paid_media",
+            "signature": "onPurchasedPaidMedia(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onRemovedChatBoost",
+            "router_type": "removed_chat_boost",
+            "signature": "onRemovedChatBoost(callable|string $handler, array $middleware = []): static",
+            "on_facade": false
+        },
+        {
+            "method": "onShippingQuery",
+            "router_type": "shipping_query",
+            "signature": "onShippingQuery(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onStep",
+            "router_type": "step",
+            "signature": "onStep(string $step, callable|string $handler, array $types = [\"text\"], array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onText",
+            "router_type": "text",
+            "signature": "onText(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onUnknownCommand",
+            "router_type": "unknown_command",
+            "signature": "onUnknownCommand(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onUpdate",
+            "router_type": "update",
+            "signature": "onUpdate(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        }
+    ],
+    "context": [
+        {
+            "name": "answerCallback",
+            "signature": "answerCallback(string $text = '', bool $showAlert = false): bool"
+        },
+        {
+            "name": "api",
+            "signature": "api(): TelegramApi"
+        },
+        {
+            "name": "callbackData",
+            "signature": "callbackData(): ?string"
+        },
+        {
+            "name": "callbackQuery",
+            "signature": "callbackQuery(): ?CallbackQuery"
+        },
+        {
+            "name": "chat",
+            "signature": "chat(): ?Chat"
+        },
+        {
+            "name": "chatId",
+            "signature": "chatId(): int"
+        },
+        {
+            "name": "chatType",
+            "signature": "chatType(): ?string"
+        },
+        {
+            "name": "clearFlow",
+            "signature": "clearFlow(): void"
+        },
+        {
+            "name": "deleteCurrentMessage",
+            "signature": "deleteCurrentMessage(): bool"
+        },
+        {
+            "name": "editReply",
+            "signature": "editReply(string $text, array $options = []): Message"
+        },
+        {
+            "name": "editReplySafe",
+            "signature": "editReplySafe(string $text, array $options = []): ?Message"
+        },
+        {
+            "name": "from",
+            "signature": "from(): ?User"
+        },
+        {
+            "name": "isChannel",
+            "signature": "isChannel(): bool"
+        },
+        {
+            "name": "isGroup",
+            "signature": "isGroup(): bool"
+        },
+        {
+            "name": "isPrivate",
+            "signature": "isPrivate(): bool"
+        },
+        {
+            "name": "locale",
+            "signature": "locale(): string"
+        },
+        {
+            "name": "message",
+            "signature": "message(): ?Message"
+        },
+        {
+            "name": "removeKeyboard",
+            "signature": "removeKeyboard(): bool"
+        },
+        {
+            "name": "reply",
+            "signature": "reply(string $text, array $options = []): Message"
+        },
+        {
+            "name": "replyWithAudio",
+            "signature": "replyWithAudio(InputFile|string $audio, array $options = []): Message"
+        },
+        {
+            "name": "replyWithDocument",
+            "signature": "replyWithDocument(InputFile|string $document, array $options = []): Message"
+        },
+        {
+            "name": "replyWithLocation",
+            "signature": "replyWithLocation(float $latitude, float $longitude, array $options = []): Message"
+        },
+        {
+            "name": "replyWithPhoto",
+            "signature": "replyWithPhoto(InputFile|string $photo, array $options = []): Message"
+        },
+        {
+            "name": "replyWithSticker",
+            "signature": "replyWithSticker(InputFile|string $sticker, array $options = []): Message"
+        },
+        {
+            "name": "replyWithVideo",
+            "signature": "replyWithVideo(InputFile|string $video, array $options = []): Message"
+        },
+        {
+            "name": "replyWithVoice",
+            "signature": "replyWithVoice(InputFile|string $voice, array $options = []): Message"
+        },
+        {
+            "name": "sendChatAction",
+            "signature": "sendChatAction(string $action): bool"
+        },
+        {
+            "name": "setLocale",
+            "signature": "setLocale(string $locale): void"
+        },
+        {
+            "name": "setStep",
+            "signature": "setStep(string $step): void"
+        },
+        {
+            "name": "setTemp",
+            "signature": "setTemp(string $key, mixed $value): void"
+        },
+        {
+            "name": "setUserRepository",
+            "signature": "setUserRepository(object $repo): void"
+        },
+        {
+            "name": "step",
+            "signature": "step(): ?string"
+        },
+        {
+            "name": "t",
+            "signature": "t(string $key, array $vars = [], ?string $locale = null): string"
+        },
+        {
+            "name": "temp",
+            "signature": "temp(?string $key = null): mixed"
+        },
+        {
+            "name": "text",
+            "signature": "text(): ?string"
+        },
+        {
+            "name": "typing",
+            "signature": "typing(): bool"
+        },
+        {
+            "name": "update",
+            "signature": "update(): Update"
+        },
+        {
+            "name": "user",
+            "signature": "user(): ?object"
+        },
+        {
+            "name": "userId",
+            "signature": "userId(): int"
+        }
+    ],
+    "bot_facade": [
+        {
+            "name": "answerCallbackQuery",
+            "signature": "answerCallbackQuery(string $callbackQueryId, array $options = []): bool"
+        },
+        {
+            "name": "answerInlineQuery",
+            "signature": "answerInlineQuery(string $inlineQueryId, array $results, array $options = []): bool"
+        },
+        {
+            "name": "answerPreCheckoutQuery",
+            "signature": "answerPreCheckoutQuery(string $preCheckoutQueryId, bool $ok, array $options = []): bool"
+        },
+        {
+            "name": "answerShippingQuery",
+            "signature": "answerShippingQuery(string $shippingQueryId, bool $ok, array $options = []): bool"
+        },
+        {
+            "name": "approveChatJoinRequest",
+            "signature": "approveChatJoinRequest(string|int $chatId, int $userId): bool"
+        },
+        {
+            "name": "chatTypes",
+            "signature": "chatTypes(array $chatTypes, callable $register): BotInstance"
+        },
+        {
+            "name": "createChatInviteLink",
+            "signature": "createChatInviteLink(string|int $chatId, array $options = []): array"
+        },
+        {
+            "name": "declineChatJoinRequest",
+            "signature": "declineChatJoinRequest(string|int $chatId, int $userId): bool"
+        },
+        {
+            "name": "deleteMessage",
+            "signature": "deleteMessage(string|int $chatId, int $messageId): bool"
+        },
+        {
+            "name": "deleteMessages",
+            "signature": "deleteMessages(string|int $chatId, array $messageIds): bool"
+        },
+        {
+            "name": "deleteMyCommands",
+            "signature": "deleteMyCommands(array $options = []): bool"
+        },
+        {
+            "name": "deleteWebhook",
+            "signature": "deleteWebhook(bool $dropPendingUpdates = false): bool"
+        },
+        {
+            "name": "editMessageText",
+            "signature": "editMessageText(string|int $chatId, int $messageId, string $text, array $options = []): Message"
+        },
+        {
+            "name": "exportChatInviteLink",
+            "signature": "exportChatInviteLink(string|int $chatId): string"
+        },
+        {
+            "name": "fake",
+            "signature": "fake(array $config = []): FakeBot"
+        },
+        {
+            "name": "getChat",
+            "signature": "getChat(string|int $chatId): array"
+        },
+        {
+            "name": "getChatAdministrators",
+            "signature": "getChatAdministrators(string|int $chatId): array"
+        },
+        {
+            "name": "getChatMember",
+            "signature": "getChatMember(string|int $chatId, int $userId): array"
+        },
+        {
+            "name": "getChatMemberCount",
+            "signature": "getChatMemberCount(string|int $chatId): int"
+        },
+        {
+            "name": "getFile",
+            "signature": "getFile(string $fileId): array"
+        },
+        {
+            "name": "getInstance",
+            "signature": "getInstance(): BotInstance"
+        },
+        {
+            "name": "getMe",
+            "signature": "getMe(): User"
+        },
+        {
+            "name": "getMyCommands",
+            "signature": "getMyCommands(array $options = []): array"
+        },
+        {
+            "name": "getMyDescription",
+            "signature": "getMyDescription(array $options = []): array"
+        },
+        {
+            "name": "getMyName",
+            "signature": "getMyName(array $options = []): array"
+        },
+        {
+            "name": "getMyShortDescription",
+            "signature": "getMyShortDescription(array $options = []): array"
+        },
+        {
+            "name": "getUpdates",
+            "signature": "getUpdates(array $options = []): array"
+        },
+        {
+            "name": "getWebhookInfo",
+            "signature": "getWebhookInfo(): array"
+        },
+        {
+            "name": "init",
+            "signature": "init(?string $token, array $config = []): BotInstance"
+        },
+        {
+            "name": "leaveChat",
+            "signature": "leaveChat(string|int $chatId): bool"
+        },
+        {
+            "name": "loadHandlers",
+            "signature": "loadHandlers(array|string $handlers): BotInstance"
+        },
+        {
+            "name": "log",
+            "signature": "log(mixed $data): void"
+        },
+        {
+            "name": "onCallbackQuery",
+            "signature": "onCallbackQuery(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onChannelPost",
+            "signature": "onChannelPost(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onChatJoinRequest",
+            "signature": "onChatJoinRequest(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onChatMember",
+            "signature": "onChatMember(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onChosenInlineResult",
+            "signature": "onChosenInlineResult(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onCommand",
+            "signature": "onCommand(string $command, callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onDocument",
+            "signature": "onDocument(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onEditedMessage",
+            "signature": "onEditedMessage(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onInlineQuery",
+            "signature": "onInlineQuery(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onMessage",
+            "signature": "onMessage(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onMyChatMember",
+            "signature": "onMyChatMember(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onPhoto",
+            "signature": "onPhoto(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onPoll",
+            "signature": "onPoll(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onPollAnswer",
+            "signature": "onPollAnswer(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onPreCheckoutQuery",
+            "signature": "onPreCheckoutQuery(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onShippingQuery",
+            "signature": "onShippingQuery(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onStep",
+            "signature": "onStep(string $step, callable|string $handler, array $types = [\"text\"], array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onText",
+            "signature": "onText(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onUnknownCommand",
+            "signature": "onUnknownCommand(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onUpdate",
+            "signature": "onUpdate(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "poll",
+            "signature": "poll(?callable $onError = null): never"
+        },
+        {
+            "name": "promoteChatMember",
+            "signature": "promoteChatMember(string|int $chatId, int $userId, array $options = []): bool"
+        },
+        {
+            "name": "restrictChatMember",
+            "signature": "restrictChatMember(string|int $chatId, int $userId, array $permissions, array $options = []): bool"
+        },
+        {
+            "name": "revokeChatInviteLink",
+            "signature": "revokeChatInviteLink(string|int $chatId, string $inviteLink): array"
+        },
+        {
+            "name": "run",
+            "signature": "run(): void"
+        },
+        {
+            "name": "saveLog",
+            "signature": "saveLog(mixed $data, string $level = 'INFO', int $_depth = 1): void"
+        },
+        {
+            "name": "sendAudio",
+            "signature": "sendAudio(string|int $chatId, InputFile|string $audio, array $options = []): Message"
+        },
+        {
+            "name": "sendChatAction",
+            "signature": "sendChatAction(string|int $chatId, string $action): bool"
+        },
+        {
+            "name": "sendDocument",
+            "signature": "sendDocument(string|int $chatId, InputFile|string $document, array $options = []): Message"
+        },
+        {
+            "name": "sendInvoice",
+            "signature": "sendInvoice(string|int $chatId, string $title, string $description, string $payload, string $currency, array $prices, array $options = []): Message"
+        },
+        {
+            "name": "sendLocation",
+            "signature": "sendLocation(string|int $chatId, float $latitude, float $longitude, array $options = []): Message"
+        },
+        {
+            "name": "sendMediaGroup",
+            "signature": "sendMediaGroup(string|int $chatId, array $media, array $options = []): array"
+        },
+        {
+            "name": "sendMessage",
+            "signature": "sendMessage(string|int $chatId, string $text, array $options = []): Message"
+        },
+        {
+            "name": "sendPhoto",
+            "signature": "sendPhoto(string|int $chatId, InputFile|string $photo, array $options = []): Message"
+        },
+        {
+            "name": "sendSticker",
+            "signature": "sendSticker(string|int $chatId, InputFile|string $sticker, array $options = []): Message"
+        },
+        {
+            "name": "sendVenue",
+            "signature": "sendVenue(string|int $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): Message"
+        },
+        {
+            "name": "sendVideo",
+            "signature": "sendVideo(string|int $chatId, InputFile|string $video, array $options = []): Message"
+        },
+        {
+            "name": "sendVideoNote",
+            "signature": "sendVideoNote(string|int $chatId, InputFile|string $videoNote, array $options = []): Message"
+        },
+        {
+            "name": "setChatDescription",
+            "signature": "setChatDescription(string|int $chatId, string $description = ''): bool"
+        },
+        {
+            "name": "setChatPermissions",
+            "signature": "setChatPermissions(string|int $chatId, array $permissions, array $options = []): bool"
+        },
+        {
+            "name": "setChatTitle",
+            "signature": "setChatTitle(string|int $chatId, string $title): bool"
+        },
+        {
+            "name": "setMyCommands",
+            "signature": "setMyCommands(array $commands, array $options = []): bool"
+        },
+        {
+            "name": "setMyDescription",
+            "signature": "setMyDescription(string $description = '', array $options = []): bool"
+        },
+        {
+            "name": "setMyName",
+            "signature": "setMyName(string $name = '', array $options = []): bool"
+        },
+        {
+            "name": "setMyShortDescription",
+            "signature": "setMyShortDescription(string $shortDescription = '', array $options = []): bool"
+        },
+        {
+            "name": "setWebhook",
+            "signature": "setWebhook(string $url, array $options = []): bool"
+        },
+        {
+            "name": "stopPoll",
+            "signature": "stopPoll(string|int $chatId, int $messageId, array $options = []): array"
+        },
+        {
+            "name": "unpinAllChatMessages",
+            "signature": "unpinAllChatMessages(string|int $chatId): bool"
+        },
+        {
+            "name": "use",
+            "signature": "use(MiddlewareInterface|callable|string $middleware): BotInstance"
+        },
+        {
+            "name": "username",
+            "signature": "username(): string"
+        }
+    ],
+    "telegram_api": [
+        {
+            "name": "addStickerToSet",
+            "signature": "addStickerToSet(int $userId, string $name, array $sticker): bool"
+        },
+        {
+            "name": "answerCallbackQuery",
+            "signature": "answerCallbackQuery(string $callbackQueryId, array $options = []): bool"
+        },
+        {
+            "name": "answerChatJoinRequestQuery",
+            "signature": "answerChatJoinRequestQuery(string $chatJoinRequestQueryId, string $result, array $options = []): bool"
+        },
+        {
+            "name": "answerGuestQuery",
+            "signature": "answerGuestQuery(string $guestQueryId, array $result): array"
+        },
+        {
+            "name": "answerInlineQuery",
+            "signature": "answerInlineQuery(string $inlineQueryId, array $results, array $options = []): bool"
+        },
+        {
+            "name": "answerPreCheckoutQuery",
+            "signature": "answerPreCheckoutQuery(string $preCheckoutQueryId, bool $ok, array $options = []): bool"
+        },
+        {
+            "name": "answerShippingQuery",
+            "signature": "answerShippingQuery(string $shippingQueryId, bool $ok, array $options = []): bool"
+        },
+        {
+            "name": "answerWebAppQuery",
+            "signature": "answerWebAppQuery(string $webAppQueryId, array $result): array"
+        },
+        {
+            "name": "approveChatJoinRequest",
+            "signature": "approveChatJoinRequest(string|int $chatId, int $userId): bool"
+        },
+        {
+            "name": "approveSuggestedPost",
+            "signature": "approveSuggestedPost(string|int $chatId, int $messageId, array $options = []): bool"
+        },
+        {
+            "name": "banChatMember",
+            "signature": "banChatMember(string|int $chatId, int $userId, array $options = []): bool"
+        },
+        {
+            "name": "banChatSenderChat",
+            "signature": "banChatSenderChat(string|int $chatId, int $senderChatId): bool"
+        },
+        {
+            "name": "close",
+            "signature": "close(): bool"
+        },
+        {
+            "name": "closeForumTopic",
+            "signature": "closeForumTopic(string|int $chatId, int $messageThreadId): bool"
+        },
+        {
+            "name": "closeGeneralForumTopic",
+            "signature": "closeGeneralForumTopic(string|int $chatId): bool"
+        },
+        {
+            "name": "convertGiftToStars",
+            "signature": "convertGiftToStars(string $businessConnectionId, string $ownedGiftId): bool"
+        },
+        {
+            "name": "copyMessage",
+            "signature": "copyMessage(string|int $chatId, string|int $fromChatId, int $messageId, array $options = []): array"
+        },
+        {
+            "name": "copyMessages",
+            "signature": "copyMessages(string|int $chatId, string|int $fromChatId, array $messageIds, array $options = []): array"
+        },
+        {
+            "name": "createChatInviteLink",
+            "signature": "createChatInviteLink(string|int $chatId, array $options = []): array"
+        },
+        {
+            "name": "createChatSubscriptionInviteLink",
+            "signature": "createChatSubscriptionInviteLink(string|int $chatId, int $subscriptionPeriod, int $subscriptionPrice, array $options = []): array"
+        },
+        {
+            "name": "createForumTopic",
+            "signature": "createForumTopic(string|int $chatId, string $name, array $options = []): array"
+        },
+        {
+            "name": "createInvoiceLink",
+            "signature": "createInvoiceLink(string $title, string $description, string $payload, string $currency, array $prices, array $options = []): string"
+        },
+        {
+            "name": "createNewStickerSet",
+            "signature": "createNewStickerSet(int $userId, string $name, string $title, array $stickers, array $options = []): bool"
+        },
+        {
+            "name": "declineChatJoinRequest",
+            "signature": "declineChatJoinRequest(string|int $chatId, int $userId): bool"
+        },
+        {
+            "name": "declineSuggestedPost",
+            "signature": "declineSuggestedPost(string|int $chatId, int $messageId, array $options = []): bool"
+        },
+        {
+            "name": "deleteAllMessageReactions",
+            "signature": "deleteAllMessageReactions(string|int $chatId, array $options = []): bool"
+        },
+        {
+            "name": "deleteBusinessMessages",
+            "signature": "deleteBusinessMessages(string $businessConnectionId, array $messageIds): bool"
+        },
+        {
+            "name": "deleteChatPhoto",
+            "signature": "deleteChatPhoto(string|int $chatId): bool"
+        },
+        {
+            "name": "deleteChatStickerSet",
+            "signature": "deleteChatStickerSet(string|int $chatId): bool"
+        },
+        {
+            "name": "deleteForumTopic",
+            "signature": "deleteForumTopic(string|int $chatId, int $messageThreadId): bool"
+        },
+        {
+            "name": "deleteMessage",
+            "signature": "deleteMessage(string|int $chatId, int $messageId): bool"
+        },
+        {
+            "name": "deleteMessageReaction",
+            "signature": "deleteMessageReaction(string|int $chatId, int $messageId, array $options = []): bool"
+        },
+        {
+            "name": "deleteMessages",
+            "signature": "deleteMessages(string|int $chatId, array $messageIds): bool"
+        },
+        {
+            "name": "deleteMyCommands",
+            "signature": "deleteMyCommands(array $options = []): bool"
+        },
+        {
+            "name": "deleteStickerFromSet",
+            "signature": "deleteStickerFromSet(string $sticker): bool"
+        },
+        {
+            "name": "deleteStickerSet",
+            "signature": "deleteStickerSet(string $name): bool"
+        },
+        {
+            "name": "deleteStory",
+            "signature": "deleteStory(string $businessConnectionId, int $storyId): bool"
+        },
+        {
+            "name": "deleteWebhook",
+            "signature": "deleteWebhook(bool $dropPendingUpdates = false): bool"
+        },
+        {
+            "name": "editChatInviteLink",
+            "signature": "editChatInviteLink(string|int $chatId, string $inviteLink, array $options = []): array"
+        },
+        {
+            "name": "editChatSubscriptionInviteLink",
+            "signature": "editChatSubscriptionInviteLink(string|int $chatId, string $inviteLink, array $options = []): array"
+        },
+        {
+            "name": "editForumTopic",
+            "signature": "editForumTopic(string|int $chatId, int $messageThreadId, array $options = []): bool"
+        },
+        {
+            "name": "editGeneralForumTopic",
+            "signature": "editGeneralForumTopic(string|int $chatId, string $name): bool"
+        },
+        {
+            "name": "editMessageCaption",
+            "signature": "editMessageCaption(string|int $chatId, int $messageId, string $caption, array $options = []): Message"
+        },
+        {
+            "name": "editMessageChecklist",
+            "signature": "editMessageChecklist(string $businessConnectionId, string|int $chatId, int $messageId, array $checklist, array $options = []): Message"
+        },
+        {
+            "name": "editMessageLiveLocation",
+            "signature": "editMessageLiveLocation(float $latitude, float $longitude, array $options = []): Message"
+        },
+        {
+            "name": "editMessageMedia",
+            "signature": "editMessageMedia(string|int $chatId, int $messageId, array $media, array $options = []): Message"
+        },
+        {
+            "name": "editMessageReplyMarkup",
+            "signature": "editMessageReplyMarkup(string|int $chatId, int $messageId, array $replyMarkup): Message"
+        },
+        {
+            "name": "editMessageText",
+            "signature": "editMessageText(string|int $chatId, int $messageId, string $text, array $options = []): Message"
+        },
+        {
+            "name": "editStory",
+            "signature": "editStory(string $businessConnectionId, int $storyId, array $content, array $options = []): array"
+        },
+        {
+            "name": "editUserStarSubscription",
+            "signature": "editUserStarSubscription(int $userId, string $telegramPaymentChargeId, bool $isCanceled): bool"
+        },
+        {
+            "name": "exportChatInviteLink",
+            "signature": "exportChatInviteLink(string|int $chatId): string"
+        },
+        {
+            "name": "forwardMessage",
+            "signature": "forwardMessage(string|int $chatId, string|int $fromChatId, int $messageId, array $options = []): Message"
+        },
+        {
+            "name": "forwardMessages",
+            "signature": "forwardMessages(string|int $chatId, string|int $fromChatId, array $messageIds, array $options = []): array"
+        },
+        {
+            "name": "getAvailableGifts",
+            "signature": "getAvailableGifts(): array"
+        },
+        {
+            "name": "getBusinessAccountGifts",
+            "signature": "getBusinessAccountGifts(string $businessConnectionId, array $options = []): array"
+        },
+        {
+            "name": "getBusinessAccountStarBalance",
+            "signature": "getBusinessAccountStarBalance(string $businessConnectionId): array"
+        },
+        {
+            "name": "getBusinessConnection",
+            "signature": "getBusinessConnection(string $businessConnectionId): BusinessConnection"
+        },
+        {
+            "name": "getChat",
+            "signature": "getChat(string|int $chatId): array"
+        },
+        {
+            "name": "getChatAdministrators",
+            "signature": "getChatAdministrators(string|int $chatId): array"
+        },
+        {
+            "name": "getChatGifts",
+            "signature": "getChatGifts(string|int $chatId, array $options = []): array"
+        },
+        {
+            "name": "getChatMember",
+            "signature": "getChatMember(string|int $chatId, int $userId): array"
+        },
+        {
+            "name": "getChatMemberCount",
+            "signature": "getChatMemberCount(string|int $chatId): int"
+        },
+        {
+            "name": "getChatMenuButton",
+            "signature": "getChatMenuButton(array $options = []): array"
+        },
+        {
+            "name": "getCustomEmojiStickers",
+            "signature": "getCustomEmojiStickers(array $customEmojiIds): array"
+        },
+        {
+            "name": "getFile",
+            "signature": "getFile(string $fileId): array"
+        },
+        {
+            "name": "getForumTopicIconStickers",
+            "signature": "getForumTopicIconStickers(): array"
+        },
+        {
+            "name": "getGameHighScores",
+            "signature": "getGameHighScores(int $userId, array $options = []): array"
+        },
+        {
+            "name": "getManagedBotAccessSettings",
+            "signature": "getManagedBotAccessSettings(int $userId): array"
+        },
+        {
+            "name": "getManagedBotToken",
+            "signature": "getManagedBotToken(int $userId): string"
+        },
+        {
+            "name": "getMe",
+            "signature": "getMe(): User"
+        },
+        {
+            "name": "getMyCommands",
+            "signature": "getMyCommands(array $options = []): array"
+        },
+        {
+            "name": "getMyDefaultAdminRights",
+            "signature": "getMyDefaultAdminRights(array $options = []): array"
+        },
+        {
+            "name": "getMyDefaultAdministratorRights",
+            "signature": "getMyDefaultAdministratorRights(array $options = []): array"
+        },
+        {
+            "name": "getMyDescription",
+            "signature": "getMyDescription(array $options = []): array"
+        },
+        {
+            "name": "getMyName",
+            "signature": "getMyName(array $options = []): array"
+        },
+        {
+            "name": "getMyShortDescription",
+            "signature": "getMyShortDescription(array $options = []): array"
+        },
+        {
+            "name": "getMyStarBalance",
+            "signature": "getMyStarBalance(): array"
+        },
+        {
+            "name": "getStarTransactions",
+            "signature": "getStarTransactions(array $options = []): array"
+        },
+        {
+            "name": "getStickerSet",
+            "signature": "getStickerSet(string $name): array"
+        },
+        {
+            "name": "getUpdates",
+            "signature": "getUpdates(array $options = []): array"
+        },
+        {
+            "name": "getUserChatBoosts",
+            "signature": "getUserChatBoosts(string|int $chatId, int $userId): array"
+        },
+        {
+            "name": "getUserGifts",
+            "signature": "getUserGifts(int $userId, array $options = []): array"
+        },
+        {
+            "name": "getUserPersonalChatMessages",
+            "signature": "getUserPersonalChatMessages(int $userId, int $limit): array"
+        },
+        {
+            "name": "getUserProfileAudios",
+            "signature": "getUserProfileAudios(int $userId, array $options = []): array"
+        },
+        {
+            "name": "getUserProfilePhotos",
+            "signature": "getUserProfilePhotos(int $userId, array $options = []): array"
+        },
+        {
+            "name": "getWebhookInfo",
+            "signature": "getWebhookInfo(): array"
+        },
+        {
+            "name": "giftPremiumSubscription",
+            "signature": "giftPremiumSubscription(int $userId, int $monthCount, int $starCount, array $options = []): bool"
+        },
+        {
+            "name": "hideGeneralForumTopic",
+            "signature": "hideGeneralForumTopic(string|int $chatId): bool"
+        },
+        {
+            "name": "leaveChat",
+            "signature": "leaveChat(string|int $chatId): bool"
+        },
+        {
+            "name": "logOut",
+            "signature": "logOut(): bool"
+        },
+        {
+            "name": "pinChatMessage",
+            "signature": "pinChatMessage(string|int $chatId, int $messageId, bool $disableNotification = false): bool"
+        },
+        {
+            "name": "postStory",
+            "signature": "postStory(string $businessConnectionId, array $content, int $activePeriod, array $options = []): array"
+        },
+        {
+            "name": "promoteChatMember",
+            "signature": "promoteChatMember(string|int $chatId, int $userId, array $options = []): bool"
+        },
+        {
+            "name": "readBusinessMessage",
+            "signature": "readBusinessMessage(string $businessConnectionId, string|int $chatId, int $messageId): bool"
+        },
+        {
+            "name": "refundStarPayment",
+            "signature": "refundStarPayment(int $userId, string $telegramPaymentChargeId): bool"
+        },
+        {
+            "name": "removeBusinessAccountProfilePhoto",
+            "signature": "removeBusinessAccountProfilePhoto(string $businessConnectionId, array $options = []): bool"
+        },
+        {
+            "name": "removeChatVerification",
+            "signature": "removeChatVerification(string|int $chatId): bool"
+        },
+        {
+            "name": "removeMyProfilePhoto",
+            "signature": "removeMyProfilePhoto(): bool"
+        },
+        {
+            "name": "removeUserVerification",
+            "signature": "removeUserVerification(int $userId): bool"
+        },
+        {
+            "name": "reopenForumTopic",
+            "signature": "reopenForumTopic(string|int $chatId, int $messageThreadId): bool"
+        },
+        {
+            "name": "reopenGeneralForumTopic",
+            "signature": "reopenGeneralForumTopic(string|int $chatId): bool"
+        },
+        {
+            "name": "replaceManagedBotToken",
+            "signature": "replaceManagedBotToken(int $userId): string"
+        },
+        {
+            "name": "replaceStickerInSet",
+            "signature": "replaceStickerInSet(int $userId, string $name, string $oldSticker, array $sticker): bool"
+        },
+        {
+            "name": "repostStory",
+            "signature": "repostStory(string $businessConnectionId, string|int $fromChatId, int $fromStoryId, int $activePeriod, array $options = []): array"
+        },
+        {
+            "name": "restrictChatMember",
+            "signature": "restrictChatMember(string|int $chatId, int $userId, array $permissions, array $options = []): bool"
+        },
+        {
+            "name": "revokeChatInviteLink",
+            "signature": "revokeChatInviteLink(string|int $chatId, string $inviteLink): array"
+        },
+        {
+            "name": "savePreparedInlineMessage",
+            "signature": "savePreparedInlineMessage(int $userId, array $result, array $options = []): array"
+        },
+        {
+            "name": "savePreparedKeyboardButton",
+            "signature": "savePreparedKeyboardButton(int $userId, array $button): array"
+        },
+        {
+            "name": "sendAnimation",
+            "signature": "sendAnimation(string|int $chatId, InputFile|string $animation, array $options = []): Message"
+        },
+        {
+            "name": "sendAudio",
+            "signature": "sendAudio(string|int $chatId, InputFile|string $audio, array $options = []): Message"
+        },
+        {
+            "name": "sendChatAction",
+            "signature": "sendChatAction(string|int $chatId, string $action): bool"
+        },
+        {
+            "name": "sendChatJoinRequestWebApp",
+            "signature": "sendChatJoinRequestWebApp(string $chatJoinRequestQueryId, string $webAppUrl): bool"
+        },
+        {
+            "name": "sendChecklist",
+            "signature": "sendChecklist(string $businessConnectionId, string|int $chatId, array $checklist, array $options = []): Message"
+        },
+        {
+            "name": "sendContact",
+            "signature": "sendContact(string|int $chatId, string $phoneNumber, string $firstName, array $options = []): Message"
+        },
+        {
+            "name": "sendDice",
+            "signature": "sendDice(string|int $chatId, array $options = []): Message"
+        },
+        {
+            "name": "sendDocument",
+            "signature": "sendDocument(string|int $chatId, InputFile|string $document, array $options = []): Message"
+        },
+        {
+            "name": "sendGame",
+            "signature": "sendGame(string|int $chatId, string $gameShortName, array $options = []): Message"
+        },
+        {
+            "name": "sendGift",
+            "signature": "sendGift(string $giftId, array $options = []): bool"
+        },
+        {
+            "name": "sendInvoice",
+            "signature": "sendInvoice(string|int $chatId, string $title, string $description, string $payload, string $currency, array $prices, array $options = []): Message"
+        },
+        {
+            "name": "sendLivePhoto",
+            "signature": "sendLivePhoto(string|int $chatId, mixed $livePhoto, mixed $photo, array $options = []): Message"
+        },
+        {
+            "name": "sendLocation",
+            "signature": "sendLocation(string|int $chatId, float $latitude, float $longitude, array $options = []): Message"
+        },
+        {
+            "name": "sendMediaGroup",
+            "signature": "sendMediaGroup(string|int $chatId, array $media, array $options = []): array"
+        },
+        {
+            "name": "sendMessage",
+            "signature": "sendMessage(string|int $chatId, string $text, array $options = []): Message"
+        },
+        {
+            "name": "sendMessageDraft",
+            "signature": "sendMessageDraft(string|int $chatId, int $draftId, array $options = []): bool"
+        },
+        {
+            "name": "sendPaidMedia",
+            "signature": "sendPaidMedia(string|int $chatId, int $starCount, array $media, array $options = []): Message"
+        },
+        {
+            "name": "sendPhoto",
+            "signature": "sendPhoto(string|int $chatId, InputFile|string $photo, array $options = []): Message"
+        },
+        {
+            "name": "sendPoll",
+            "signature": "sendPoll(string|int $chatId, string $question, array $pollOptions, array $options = []): Message"
+        },
+        {
+            "name": "sendRichMessage",
+            "signature": "sendRichMessage(string|int $chatId, array $richMessage, array $options = []): Message"
+        },
+        {
+            "name": "sendRichMessageDraft",
+            "signature": "sendRichMessageDraft(string|int $chatId, int $draftId, array $richMessage, array $options = []): bool"
+        },
+        {
+            "name": "sendSticker",
+            "signature": "sendSticker(string|int $chatId, InputFile|string $sticker, array $options = []): Message"
+        },
+        {
+            "name": "sendVenue",
+            "signature": "sendVenue(string|int $chatId, float $latitude, float $longitude, string $title, string $address, array $options = []): Message"
+        },
+        {
+            "name": "sendVideo",
+            "signature": "sendVideo(string|int $chatId, InputFile|string $video, array $options = []): Message"
+        },
+        {
+            "name": "sendVideoNote",
+            "signature": "sendVideoNote(string|int $chatId, InputFile|string $videoNote, array $options = []): Message"
+        },
+        {
+            "name": "sendVoice",
+            "signature": "sendVoice(string|int $chatId, InputFile|string $voice, array $options = []): Message"
+        },
+        {
+            "name": "setBusinessAccountBio",
+            "signature": "setBusinessAccountBio(string $businessConnectionId, array $options = []): bool"
+        },
+        {
+            "name": "setBusinessAccountGiftSettings",
+            "signature": "setBusinessAccountGiftSettings(string $businessConnectionId, bool $showGiftButton, array $acceptedGiftTypes): bool"
+        },
+        {
+            "name": "setBusinessAccountName",
+            "signature": "setBusinessAccountName(string $businessConnectionId, string $firstName, array $options = []): bool"
+        },
+        {
+            "name": "setBusinessAccountProfilePhoto",
+            "signature": "setBusinessAccountProfilePhoto(string $businessConnectionId, mixed $photo, array $options = []): bool"
+        },
+        {
+            "name": "setBusinessAccountUsername",
+            "signature": "setBusinessAccountUsername(string $businessConnectionId, array $options = []): bool"
+        },
+        {
+            "name": "setChatAdministratorCustomTitle",
+            "signature": "setChatAdministratorCustomTitle(string|int $chatId, int $userId, string $customTitle): bool"
+        },
+        {
+            "name": "setChatDescription",
+            "signature": "setChatDescription(string|int $chatId, string $description = ''): bool"
+        },
+        {
+            "name": "setChatMemberTag",
+            "signature": "setChatMemberTag(string|int $chatId, int $userId, array $options = []): bool"
+        },
+        {
+            "name": "setChatMenuButton",
+            "signature": "setChatMenuButton(array $options = []): bool"
+        },
+        {
+            "name": "setChatPermissions",
+            "signature": "setChatPermissions(string|int $chatId, array $permissions, array $options = []): bool"
+        },
+        {
+            "name": "setChatPhoto",
+            "signature": "setChatPhoto(string|int $chatId, mixed $photo): bool"
+        },
+        {
+            "name": "setChatStickerSet",
+            "signature": "setChatStickerSet(string|int $chatId, string $stickerSetName): bool"
+        },
+        {
+            "name": "setChatTitle",
+            "signature": "setChatTitle(string|int $chatId, string $title): bool"
+        },
+        {
+            "name": "setCustomEmojiStickerSetThumbnail",
+            "signature": "setCustomEmojiStickerSetThumbnail(string $name, array $options = []): bool"
+        },
+        {
+            "name": "setGameScore",
+            "signature": "setGameScore(int $userId, int $score, array $options = []): array"
+        },
+        {
+            "name": "setManagedBotAccessSettings",
+            "signature": "setManagedBotAccessSettings(int $userId, bool $isAccessRestricted, array $options = []): bool"
+        },
+        {
+            "name": "setMessageReaction",
+            "signature": "setMessageReaction(string|int $chatId, int $messageId, array $options = []): bool"
+        },
+        {
+            "name": "setMyCommands",
+            "signature": "setMyCommands(array $commands, array $options = []): bool"
+        },
+        {
+            "name": "setMyDefaultAdminRights",
+            "signature": "setMyDefaultAdminRights(array $options = []): bool"
+        },
+        {
+            "name": "setMyDefaultAdministratorRights",
+            "signature": "setMyDefaultAdministratorRights(array $options = []): bool"
+        },
+        {
+            "name": "setMyDescription",
+            "signature": "setMyDescription(string $description = '', array $options = []): bool"
+        },
+        {
+            "name": "setMyName",
+            "signature": "setMyName(string $name = '', array $options = []): bool"
+        },
+        {
+            "name": "setMyProfilePhoto",
+            "signature": "setMyProfilePhoto(mixed $photo): bool"
+        },
+        {
+            "name": "setMyShortDescription",
+            "signature": "setMyShortDescription(string $shortDescription = '', array $options = []): bool"
+        },
+        {
+            "name": "setPassportDataErrors",
+            "signature": "setPassportDataErrors(int $userId, array $errors): bool"
+        },
+        {
+            "name": "setStickerEmojiList",
+            "signature": "setStickerEmojiList(string $sticker, array $emojiList): bool"
+        },
+        {
+            "name": "setStickerKeywords",
+            "signature": "setStickerKeywords(string $sticker, array $options = []): bool"
+        },
+        {
+            "name": "setStickerMaskPosition",
+            "signature": "setStickerMaskPosition(string $sticker, array $options = []): bool"
+        },
+        {
+            "name": "setStickerPositionInSet",
+            "signature": "setStickerPositionInSet(string $sticker, int $position): bool"
+        },
+        {
+            "name": "setStickerSetThumbnail",
+            "signature": "setStickerSetThumbnail(string $name, int $userId, string $format, array $options = []): bool"
+        },
+        {
+            "name": "setStickerSetTitle",
+            "signature": "setStickerSetTitle(string $name, string $title): bool"
+        },
+        {
+            "name": "setUserEmojiStatus",
+            "signature": "setUserEmojiStatus(int $userId, array $options = []): bool"
+        },
+        {
+            "name": "setWebhook",
+            "signature": "setWebhook(string $url, array $options = []): bool"
+        },
+        {
+            "name": "stopMessageLiveLocation",
+            "signature": "stopMessageLiveLocation(array $options = []): Message"
+        },
+        {
+            "name": "stopPoll",
+            "signature": "stopPoll(string|int $chatId, int $messageId, array $options = []): array"
+        },
+        {
+            "name": "transferBusinessAccountStars",
+            "signature": "transferBusinessAccountStars(string $businessConnectionId, int $starCount): bool"
+        },
+        {
+            "name": "transferGift",
+            "signature": "transferGift(string $businessConnectionId, string $ownedGiftId, int $newOwnerChatId, array $options = []): bool"
+        },
+        {
+            "name": "unbanChatMember",
+            "signature": "unbanChatMember(string|int $chatId, int $userId, bool $onlyIfBanned = true): bool"
+        },
+        {
+            "name": "unbanChatSenderChat",
+            "signature": "unbanChatSenderChat(string|int $chatId, int $senderChatId): bool"
+        },
+        {
+            "name": "unhideGeneralForumTopic",
+            "signature": "unhideGeneralForumTopic(string|int $chatId): bool"
+        },
+        {
+            "name": "unpinAllChatMessages",
+            "signature": "unpinAllChatMessages(string|int $chatId): bool"
+        },
+        {
+            "name": "unpinAllForumTopicMessages",
+            "signature": "unpinAllForumTopicMessages(string|int $chatId, int $messageThreadId): bool"
+        },
+        {
+            "name": "unpinAllGeneralForumTopicMessages",
+            "signature": "unpinAllGeneralForumTopicMessages(string|int $chatId): bool"
+        },
+        {
+            "name": "unpinChatMessage",
+            "signature": "unpinChatMessage(string|int $chatId, ?int $messageId = null): bool"
+        },
+        {
+            "name": "upgradeGift",
+            "signature": "upgradeGift(string $businessConnectionId, string $ownedGiftId, array $options = []): bool"
+        },
+        {
+            "name": "uploadStickerFile",
+            "signature": "uploadStickerFile(int $userId, mixed $sticker, string $stickerFormat): array"
+        },
+        {
+            "name": "verifyChat",
+            "signature": "verifyChat(string|int $chatId, array $options = []): bool"
+        },
+        {
+            "name": "verifyUser",
+            "signature": "verifyUser(int $userId, array $options = []): bool"
+        }
+    ],
+    "support": {
+        "Keyboard": [
+            {
+                "name": "button",
+                "signature": "button(string $text, string $callbackData): array"
+            },
+            {
+                "name": "inline",
+                "signature": "inline(array $rows): array"
+            },
+            {
+                "name": "paginate",
+                "signature": "paginate(array $items, int $page, callable $renderRow, string $cbPrefix, int $perPage = 10): array"
+            },
+            {
+                "name": "remove",
+                "signature": "remove(): array"
+            },
+            {
+                "name": "reply",
+                "signature": "reply(array $rows, bool $resize = true, bool $oneTime = false): array"
+            },
+            {
+                "name": "url",
+                "signature": "url(string $text, string $url): array"
+            }
+        ],
+        "Lang": [
+            {
+                "name": "defaultLocale",
+                "signature": "defaultLocale(): string"
+            },
+            {
+                "name": "findKey",
+                "signature": "findKey(string $text, array $locales): ?string"
+            },
+            {
+                "name": "get",
+                "signature": "get(string $locale, string $key, array $vars = []): string"
+            },
+            {
+                "name": "has",
+                "signature": "has(string $locale, string $key): bool"
+            },
+            {
+                "name": "normalize",
+                "signature": "normalize(string $locale): string"
+            },
+            {
+                "name": "setDefaultLocale",
+                "signature": "setDefaultLocale(string $locale): void"
+            },
+            {
+                "name": "setPath",
+                "signature": "setPath(string $path): void"
+            }
+        ],
+        "Input": [
+            {
+                "name": "between",
+                "signature": "between(int|float $value, int|float $min, int|float $max): bool"
+            },
+            {
+                "name": "clean",
+                "signature": "clean(string $value): string"
+            },
+            {
+                "name": "isEmail",
+                "signature": "isEmail(string $value): bool"
+            },
+            {
+                "name": "isFloat",
+                "signature": "isFloat(string $value): bool"
+            },
+            {
+                "name": "isInt",
+                "signature": "isInt(string $value): bool"
+            },
+            {
+                "name": "isPhone",
+                "signature": "isPhone(string $value): bool"
+            },
+            {
+                "name": "isUrl",
+                "signature": "isUrl(string $value): bool"
+            },
+            {
+                "name": "maxLength",
+                "signature": "maxLength(string $value, int $max): bool"
+            },
+            {
+                "name": "minLength",
+                "signature": "minLength(string $value, int $min): bool"
+            },
+            {
+                "name": "toFloat",
+                "signature": "toFloat(string $value, ?float $default = null): ?float"
+            },
+            {
+                "name": "toInt",
+                "signature": "toInt(string $value, ?int $default = null): ?int"
+            },
+            {
+                "name": "truncate",
+                "signature": "truncate(string $value, int $length, string $suffix = '…'): string"
+            }
+        ]
+    },
+    "cli": {
+        "new <name>": "Scaffold a new standalone bot project",
+        "doctor": "Diagnose env, token, database, routes and webhook in one run",
+        "routes": "List every registered route in evaluation order",
+        "poll": "Long-polling mode for local dev (no webhook)",
+        "broadcast:run": "Process pending rows in telegram_broadcasts",
+        "migrate": "Run pending database migrations",
+        "migrate:status": "Show applied / Pending / Untracked migrations",
+        "webhook:set <url>": "Register the webhook with Telegram",
+        "webhook:delete": "Remove the webhook (required before poll works)",
+        "webhook:info": "Show the currently registered webhook",
+        "make:command <Name>": "Generate app/Commands/<Name>.php",
+        "make:callback <Name>": "Generate app/Callbacks/<Name>.php",
+        "make:middleware <Name>": "Generate app/Middleware/<Name>.php",
+        "make:flow <Name>": "Generate app/Flows/<Name>.php",
+        "make:text <Name>": "Generate app/Texts/<Name>.php",
+        "make:service <Name>": "Generate app/Services/<Name>.php",
+        "make:migration <name>": "Generate a timestamped migration in database/migrations/",
+        "ai:manifest": "Regenerate .ai/api.json"
+    }
+}

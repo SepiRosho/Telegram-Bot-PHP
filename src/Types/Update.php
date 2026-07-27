@@ -65,6 +65,42 @@ class Update
         );
     }
 
+    /**
+     * The Chat this update happened in, or null for update types that carry
+     * no chat at all — inline_query, chosen_inline_result, poll, poll_answer,
+     * shipping_query, pre_checkout_query, business_connection and
+     * purchased_paid_media all reach the bot from outside any chat.
+     *
+     * Router's chat-type filter treats a null chat as "not filterable" and
+     * lets the update through rather than dropping it, since there is nothing
+     * to compare against.
+     */
+    public function chat(): ?Chat
+    {
+        return $this->message?->chat
+            ?? $this->editedMessage?->chat
+            ?? $this->channelPost?->chat
+            ?? $this->editedChannelPost?->chat
+            ?? $this->businessMessage?->chat
+            ?? $this->editedBusinessMessage?->chat
+            ?? $this->guestMessage?->chat
+            ?? $this->callbackQuery?->message?->chat
+            ?? $this->myChatMember?->chat
+            ?? $this->chatMember?->chat
+            ?? $this->chatJoinRequest?->chat
+            ?? $this->messageReaction?->chat
+            ?? $this->messageReactionCount?->chat
+            ?? $this->deletedBusinessMessages?->chat
+            ?? $this->chatBoost?->chat
+            ?? $this->removedChatBoost?->chat;
+    }
+
+    /** The chat's type ('private', 'group', 'supergroup', 'channel'), or null when the update has no chat. */
+    public function chatType(): ?string
+    {
+        return $this->chat()?->type;
+    }
+
     public function type(): string
     {
         return match (true) {

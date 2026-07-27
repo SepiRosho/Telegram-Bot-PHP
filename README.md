@@ -77,12 +77,33 @@ vendor/bin/devflow make:callback ConfirmCallback    # -> app/Callbacks/ConfirmCa
 vendor/bin/devflow make:middleware MyMiddleware     # -> app/Middleware/MyMiddleware.php
 vendor/bin/devflow make:flow     RegistrationFlow   # -> app/Flows/RegistrationFlow.php
 vendor/bin/devflow make:text     WelcomeText        # -> app/Texts/WelcomeText.php
+vendor/bin/devflow make:migration create_orders_table  # -> database/migrations/<timestamp>_create_orders_table.php
 ```
 
 **Windows:**
 ```
 vendor\bin\devflow make:command  BroadcastCommand
 vendor\bin\devflow make:text     WelcomeText
+```
+
+### Diagnostics
+
+```bash
+vendor/bin/devflow doctor    # PHP extensions, .env, token, DB, base tables, routes, webhook
+vendor/bin/devflow routes    # every registered route, in evaluation order
+```
+
+`doctor` is the fastest answer to "why isn't my bot responding?" — it runs every check and prints
+the whole picture at once, so a missing extension and a bad DB password show up together.
+
+```
+Bot configuration
+  ✓ bootstrap/app.php loaded without errors
+  ✓ allowed_chat_types = [private]
+  ! webhook_secret is not set — anyone who learns your webhook URL can post fake updates
+  ✓ 7 route(s) registered
+Webhook
+  ✗ Telegram rejected the token (401 Unauthorized) — BOT_TOKEN is wrong or has been revoked
 ```
 
 ### Running locally without a webhook
@@ -139,6 +160,13 @@ Bot::init('YOUR_TOKEN');
 
 // With database enabled
 Bot::init('YOUR_TOKEN', ['database' => true]);
+
+// Recommended for most bots — respond in private chats only.
+// See docs/13-chat-types.md for why this matters.
+Bot::init('YOUR_TOKEN', [
+    'database'           => true,
+    'allowed_chat_types' => ['private'],
+]);
 ```
 
 ### Routing
@@ -146,14 +174,20 @@ Bot::init('YOUR_TOKEN', ['database' => true]);
 ```php
 Bot::onCommand('start', $handler);           // /start
 Bot::onText($handler);                        // any plain text (non-command)
+Bot::onText('buy_*', $handler);               // text matching a wildcard
+Bot::onText('/^buy_\d+$/', $handler);         // text matching a regex
 Bot::onMessage($handler);                     // any message (text, photo, etc.)
-Bot::onCallbackQuery('pattern_*', $handler);  // callback data matching a pattern
+Bot::onCallbackQuery('pattern_*', $handler);  // callback data matching a pattern or regex
 Bot::onPhoto($handler);                       // message with photo
 Bot::onDocument($handler);                    // message with document
 Bot::onInlineQuery($handler);                 // inline query
 Bot::onStep('wizard.step1', $handler);        // text message AND user's step matches (requires DB)
+Bot::onMyChatMember($handler);                // bot added to / removed from a chat
 Bot::onUpdate($handler);                      // catch-all fallback
 ```
+
+The **first matching route wins**, so register specific routes before broad ones. Run
+`vendor/bin/devflow routes` to see the exact evaluation order for a project.
 
 Handlers can be **closures** or **class names** implementing `HandlerInterface`:
 
@@ -379,6 +413,12 @@ Bot::sendMessage($chatId, '<b>Bold</b>', ['parse_mode' => 'HTML']);
 
 Bot::sendPhoto($chatId, 'https://...', ['caption' => 'Look at this']);
 Bot::sendDocument($chatId, $fileId);
+
+// Upload a local file (anything else is treated as a file_id or URL).
+// See docs/14-files-and-limits.md
+use Devflow\TelegramBot\Api\InputFile;
+Bot::sendDocument($chatId, InputFile::path('/tmp/invoice.pdf'), ['caption' => 'Your invoice']);
+Bot::sendPhoto($chatId, InputFile::contents($pngBytes, 'chart.png'));
 Bot::sendAudio($chatId, $fileId);
 Bot::sendVideo($chatId, $fileId);
 Bot::sendSticker($chatId, $fileId);
@@ -592,6 +632,25 @@ Step-by-step documentation in [`docs/`](docs/README.md):
 - [10 — Handler groups](docs/10-handler-groups.md)
 - [11 — Keyboards](docs/11-keyboards.md)
 - [12 — i18n (key-based translations)](docs/12-i18n.md)
+- [13 — Chat types (private-only bots)](docs/13-chat-types.md)
+- [14 — Files & rate limits (`InputFile`, 429 handling)](docs/14-files-and-limits.md)
+
+---
+
+## Building with an AI coding agent
+
+[`AGENTS.md`](AGENTS.md) is a single dense reference for this whole library — routing, `Context`,
+config, keyboards, flows, i18n, middleware, the database schema, the CLI and testing — written for
+coding agents rather than for people. Agents otherwise burn a lot of tokens reading tutorial-shaped
+docs and then the source anyway; this exists so they read one file and start writing correct code.
+
+`vendor/bin/devflow new` writes an `AGENTS.md` and a `CLAUDE.md` into every generated project, plus
+`.ai/api.json` — a machine-readable index of every route type, `Context` method, Telegram API method
+and config key, produced by reflection so it cannot drift from the code.
+
+```bash
+vendor/bin/devflow ai:manifest   # regenerate .ai/api.json after upgrading the library
+```
 
 ---
 

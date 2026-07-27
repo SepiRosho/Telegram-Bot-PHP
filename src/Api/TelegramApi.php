@@ -37,7 +37,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendPhoto(int|string $chatId, string $photo, array $options = []): Message
+    public function sendPhoto(int|string $chatId, string|InputFile $photo, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendPhoto', array_merge([
             'chat_id' => $chatId,
@@ -45,7 +45,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendDocument(int|string $chatId, string $document, array $options = []): Message
+    public function sendDocument(int|string $chatId, string|InputFile $document, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendDocument', array_merge([
             'chat_id' => $chatId,
@@ -53,7 +53,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendAudio(int|string $chatId, string $audio, array $options = []): Message
+    public function sendAudio(int|string $chatId, string|InputFile $audio, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendAudio', array_merge([
             'chat_id' => $chatId,
@@ -61,7 +61,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendVideo(int|string $chatId, string $video, array $options = []): Message
+    public function sendVideo(int|string $chatId, string|InputFile $video, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendVideo', array_merge([
             'chat_id' => $chatId,
@@ -69,7 +69,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendAnimation(int|string $chatId, string $animation, array $options = []): Message
+    public function sendAnimation(int|string $chatId, string|InputFile $animation, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendAnimation', array_merge([
             'chat_id' => $chatId,
@@ -77,7 +77,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendVoice(int|string $chatId, string $voice, array $options = []): Message
+    public function sendVoice(int|string $chatId, string|InputFile $voice, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendVoice', array_merge([
             'chat_id' => $chatId,
@@ -85,7 +85,7 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendSticker(int|string $chatId, string $sticker, array $options = []): Message
+    public function sendSticker(int|string $chatId, string|InputFile $sticker, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendSticker', array_merge([
             'chat_id' => $chatId,
@@ -418,7 +418,7 @@ class TelegramApi
     // Additional media
     // -------------------------------------------------------------------------
 
-    public function sendVideoNote(int|string $chatId, string $videoNote, array $options = []): Message
+    public function sendVideoNote(int|string $chatId, string|InputFile $videoNote, array $options = []): Message
     {
         return Message::fromArray($this->http->post('sendVideoNote', array_merge([
             'chat_id'    => $chatId,

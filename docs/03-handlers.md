@@ -67,6 +67,35 @@ Bot::onText(function (Context $ctx) {
 
 Matches any plain text message that is **not** a command. Does not match `/start`, but matches `hello` or `what time is it?`.
 
+#### Matching specific text
+
+Pass a pattern as the first argument to route on the message content, instead of matching by hand
+inside one big catch-all:
+
+```php
+// Wildcard glob
+Bot::onText('buy_*', function (Context $ctx) {
+    $ctx->reply('Buying…');
+});
+
+// Full PCRE regex
+Bot::onText('/^order #(\d+)$/i', function (Context $ctx) {
+    $ctx->reply('Looking up your order…');
+});
+```
+
+The first matching route wins, so register patterns **before** a bare `onText()` catch-all —
+otherwise the catch-all claims everything first. `vendor/bin/devflow routes` shows the real order.
+
+A single string argument is still a handler class name, not a pattern:
+
+```php
+Bot::onText(EchoHandler::class);            // handler
+Bot::onText('buy_*', EchoHandler::class);   // pattern + handler
+```
+
+The same wildcard and regex support applies to `Bot::onCallbackQuery()`.
+
 ### Any message (text, photo, video, sticker, etc.)
 
 ```php

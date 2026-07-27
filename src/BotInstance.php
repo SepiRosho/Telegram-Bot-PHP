@@ -5,6 +5,7 @@ namespace Devflow\TelegramBot;
 use Devflow\TelegramBot\Api\HttpClient;
 use Devflow\TelegramBot\Api\HttpClientInterface;
 use Devflow\TelegramBot\Api\TelegramApi;
+use Devflow\TelegramBot\Exceptions\MissingTokenException;
 use Devflow\TelegramBot\Exceptions\WebhookException;
 use Devflow\TelegramBot\Middleware\MiddlewareInterface;
 use Devflow\TelegramBot\Routing\Router;
@@ -17,14 +18,26 @@ class BotInstance
     private Router $router;
     private ?string $username = null;
 
+    /**
+     * $token is nullable only so that the overwhelmingly common
+     * `Bot::init(env('BOT_TOKEN'))` with an unset BOT_TOKEN reports what is
+     * actually wrong, instead of PHP rejecting the null argument first with a
+     * TypeError that names neither the token nor the .env file.
+     */
     public function __construct(
-        string $token,
+        ?string $token,
         private array $config = [],
         ?HttpClientInterface $http = null,
     ) {
+        if ($token === null || trim($token) === '') {
+            throw new MissingTokenException();
+        }
+
         $httpOptions = [];
-        if (!empty($config['proxy'])) {
-            $httpOptions['proxy'] = $config['proxy'];
+        foreach (['proxy', 'timeout', 'max_retries', 'max_retry_after'] as $option) {
+            if (isset($config[$option]) && $config[$option] !== null && $config[$option] !== '') {
+                $httpOptions[$option] = $config[$option];
+            }
         }
         $this->api = new TelegramApi($http ?? new HttpClient($token, $httpOptions));
         $this->router = new Router();
@@ -91,9 +104,26 @@ class BotInstance
         return $this;
     }
 
-    public function onText(callable|string $handler, array $middleware = []): static
-    {
-        $this->router->addRoute('text', '*', $handler, middleware: $middleware);
+    /**
+     * Match non-command text. With one argument the handler sees every text
+     * message; with two, the first is a pattern — either a `*` wildcard glob
+     * ('buy_*') or a full PCRE regex ('/^buy_\d+$/') — so routing on message
+     * content no longer requires a hand-rolled match() inside one catch-all.
+     *
+     * Overloaded rather than typed `string $pattern` because a lone string
+     * argument already means a HandlerInterface class name; this mirrors how
+     * onCallbackQuery() has always disambiguated the same way.
+     */
+    public function onText(
+        string|callable $patternOrHandler,
+        callable|string|null $handler = null,
+        array $middleware = [],
+    ): static {
+        if ($handler === null) {
+            $this->router->addRoute('text', '*', $patternOrHandler, middleware: $middleware);
+        } else {
+            $this->router->addRoute('text', (string) $patternOrHandler, $handler, middleware: $middleware);
+        }
         return $this;
     }
 
@@ -290,6 +320,23 @@ class BotInstance
     public function use(callable|string|MiddlewareInterface $middleware): static
     {
         $this->router->addMiddleware($middleware);
+        return $this;
+    }
+
+    /**
+     * Register routes that accept different chat types than the bot's global
+     * `allowed_chat_types` config — e.g. exposing one group command on a bot
+     * that is otherwise private-only:
+     *
+     *   Bot::chatTypes(['group', 'supergroup'], function () {
+     *       Bot::onCommand('stats', $handler);
+     *   });
+     *
+     * Pass ['*'] to accept any chat type.
+     */
+    public function chatTypes(array $chatTypes, callable $register): static
+    {
+        $this->router->withChatTypes($chatTypes, $register);
         return $this;
     }
 

@@ -16,5 +16,25 @@ Step-by-step guides for building a bot with this library.
 | [10 — Handler Groups](10-handler-groups.md) | Split large bots across multiple handler files |
 | [11 — Keyboards](11-keyboards.md) | `Keyboard::inline()`, `Keyboard::reply()`, `Keyboard::button()`, `Keyboard::url()`, `Keyboard::remove()`, `Keyboard::paginate()` |
 | [12 — i18n](12-i18n.md) | `Support\Lang` + `$ctx->t()` — key-based translations with per-user locale, the recommended i18n approach |
+| [13 — Chat Types](13-chat-types.md) | Restricting a bot to private chats, why it matters, and letting specific routes into groups |
+| [14 — Files & Limits](14-files-and-limits.md) | Uploading local files with `InputFile`; automatic 429 / `retry_after` handling |
 
 Start with [01 — Installation](01-installation.md) if this is your first time.
+
+## Diagnostics
+
+Two commands answer most "why isn't this working?" questions without reading any of the above:
+
+```bash
+vendor/bin/devflow doctor   # PHP extensions, .env, token, database, routes, webhook — in one pass
+vendor/bin/devflow routes   # every registered route, in the order the router evaluates them
+```
+
+## Building with a coding agent
+
+[`AGENTS.md`](../AGENTS.md) in the package root is a single dense reference covering this entire
+library — written for AI coding assistants, which burn a lot of tokens reading tutorial-shaped docs
+like these. Point your agent there instead of at `docs/` or `src/`.
+
+`vendor/bin/devflow ai:manifest` generates `.ai/api.json`: every route type, `Context` method,
+Telegram API method and config key, extracted by reflection so it can never drift from the code.

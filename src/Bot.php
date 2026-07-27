@@ -2,6 +2,7 @@
 
 namespace Devflow\TelegramBot;
 
+use Devflow\TelegramBot\Api\InputFile;
 use Devflow\TelegramBot\Exceptions\BotNotInitializedException;
 use Devflow\TelegramBot\Middleware\MiddlewareInterface;
 use Devflow\TelegramBot\Testing\FakeBot;
@@ -16,7 +17,7 @@ class Bot
 {
     private static ?BotInstance $instance = null;
 
-    public static function init(string $token, array $config = []): BotInstance
+    public static function init(?string $token, array $config = []): BotInstance
     {
         static::$instance = new BotInstance($token, $config);
         return static::$instance;
@@ -57,9 +58,17 @@ class Bot
         return static::getInstance()->onCommand($command, $handler, $middleware);
     }
 
-    public static function onText(callable|string $handler, array $middleware = []): BotInstance
-    {
-        return static::getInstance()->onText($handler, $middleware);
+    /**
+     * Bot::onText($handler)                    — every non-command text
+     * Bot::onText('buy_*', $handler)           — wildcard glob
+     * Bot::onText('/^buy_\d+$/', $handler)     — PCRE regex
+     */
+    public static function onText(
+        string|callable $patternOrHandler,
+        callable|string|null $handler = null,
+        array $middleware = [],
+    ): BotInstance {
+        return static::getInstance()->onText($patternOrHandler, $handler, $middleware);
     }
 
     public static function onMessage(callable|string $handler, array $middleware = []): BotInstance
@@ -169,6 +178,19 @@ class Bot
         return static::getInstance()->use($middleware);
     }
 
+    /**
+     * Register routes accepting different chat types than the global
+     * `allowed_chat_types` config. Pass ['*'] to accept any chat type.
+     *
+     *   Bot::chatTypes(['group', 'supergroup'], function () {
+     *       Bot::onCommand('stats', $handler);
+     *   });
+     */
+    public static function chatTypes(array $chatTypes, callable $register): BotInstance
+    {
+        return static::getInstance()->chatTypes($chatTypes, $register);
+    }
+
     public static function run(): void
     {
         static::getInstance()->run();
@@ -183,27 +205,27 @@ class Bot
         return static::getInstance()->api()->sendMessage($chatId, $text, $options);
     }
 
-    public static function sendPhoto(int|string $chatId, string $photo, array $options = []): Message
+    public static function sendPhoto(int|string $chatId, string|InputFile $photo, array $options = []): Message
     {
         return static::getInstance()->api()->sendPhoto($chatId, $photo, $options);
     }
 
-    public static function sendDocument(int|string $chatId, string $document, array $options = []): Message
+    public static function sendDocument(int|string $chatId, string|InputFile $document, array $options = []): Message
     {
         return static::getInstance()->api()->sendDocument($chatId, $document, $options);
     }
 
-    public static function sendAudio(int|string $chatId, string $audio, array $options = []): Message
+    public static function sendAudio(int|string $chatId, string|InputFile $audio, array $options = []): Message
     {
         return static::getInstance()->api()->sendAudio($chatId, $audio, $options);
     }
 
-    public static function sendVideo(int|string $chatId, string $video, array $options = []): Message
+    public static function sendVideo(int|string $chatId, string|InputFile $video, array $options = []): Message
     {
         return static::getInstance()->api()->sendVideo($chatId, $video, $options);
     }
 
-    public static function sendSticker(int|string $chatId, string $sticker, array $options = []): Message
+    public static function sendSticker(int|string $chatId, string|InputFile $sticker, array $options = []): Message
     {
         return static::getInstance()->api()->sendSticker($chatId, $sticker, $options);
     }
@@ -352,7 +374,7 @@ class Bot
     // Additional media
     // -------------------------------------------------------------------------
 
-    public static function sendVideoNote(int|string $chatId, string $videoNote, array $options = []): Message
+    public static function sendVideoNote(int|string $chatId, string|InputFile $videoNote, array $options = []): Message
     {
         return static::getInstance()->api()->sendVideoNote($chatId, $videoNote, $options);
     }

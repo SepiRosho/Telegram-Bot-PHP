@@ -44,6 +44,21 @@ class ConsoleApplicationTest extends TestCase
         $this->assertSame([], array_diff($advertised, $registered));
     }
 
+    public function test_every_registered_command_is_advertised_in_help(): void
+    {
+        // The mirror of the test above: a command nobody can discover is only
+        // marginally better than one that doesn't exist.
+        $help = $this->helpText();
+
+        foreach (array_keys($this->registeredCommands()) as $name) {
+            $this->assertStringContainsString(
+                "\033[32m{$name}\033[0m",
+                $help,
+                "Command [{$name}] is registered but never listed in `devflow help`.",
+            );
+        }
+    }
+
     public function test_every_registered_command_class_exists_and_is_executable(): void
     {
         foreach ($this->registeredCommands() as $name => $class) {
