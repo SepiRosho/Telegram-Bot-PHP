@@ -18,10 +18,20 @@ class FakeHttpClient implements HttpClientInterface
     /**
      * Queue a canned result for the next call to $method (FIFO). If no
      * response is queued, a generic default is synthesized instead.
+     *
+     * Queue a Throwable to have it thrown instead of returned — the only way
+     * to exercise the paths that matter most (a user who blocked the bot, a
+     * 429, a webhook conflict) without a real network.
      */
     public function respond(string $method, mixed $result): void
     {
         $this->queuedResponses[$method][] = $result;
+    }
+
+    /** Reads better than respond() when the queued value is an error. */
+    public function throw(string $method, \Throwable $e): void
+    {
+        $this->respond($method, $e);
     }
 
     public function post(string $method, array $params = []): mixed
@@ -29,7 +39,13 @@ class FakeHttpClient implements HttpClientInterface
         $this->calls[] = ['method' => $method, 'params' => $params];
 
         if (!empty($this->queuedResponses[$method])) {
-            return array_shift($this->queuedResponses[$method]);
+            $queued = array_shift($this->queuedResponses[$method]);
+
+            if ($queued instanceof \Throwable) {
+                throw $queued;
+            }
+
+            return $queued;
         }
 
         return $this->defaultResult($method, $params);

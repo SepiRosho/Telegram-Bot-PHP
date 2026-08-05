@@ -119,6 +119,9 @@ Bot::deleteWebhook();
 ```bash
 php delete-webhook.php
 vendor/bin/devflow poll
+
+# or, to ignore everything that queued up while the bot was down:
+vendor/bin/devflow poll --drop-pending
 ```
 
 See [08 — Local Development](docs/08-local-dev.md) for tunnel-based setup (ngrok / Cloudflare Tunnel) when you specifically need to test webhook delivery instead.
@@ -634,6 +637,7 @@ Step-by-step documentation in [`docs/`](docs/README.md):
 - [12 — i18n (key-based translations)](docs/12-i18n.md)
 - [13 — Chat types (private-only bots)](docs/13-chat-types.md)
 - [14 — Files & rate limits (`InputFile`, 429 handling)](docs/14-files-and-limits.md)
+- [15 — Errors & reliability (blocked users, polling backoff, `--drop-pending`)](docs/15-errors.md)
 
 ---
 

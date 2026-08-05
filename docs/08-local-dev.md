@@ -14,6 +14,14 @@ vendor/bin/devflow poll
 
 This boots `bootstrap/app.php` (same as a webhook request would) and then loops, calling `getUpdates()` and dispatching through your registered handlers exactly like a real webhook would. Press `Ctrl+C` to stop.
 
+**Skipping the backlog.** Telegram queues updates while your bot is down, so restarting after a break replays all of them at once. To start from "now" instead:
+
+```bash
+vendor/bin/devflow poll --drop-pending
+```
+
+That's the polling equivalent of `setWebhook`'s `drop_pending_updates`, and it leaves any registered webhook alone.
+
 > **Delete your webhook first.** Telegram only delivers updates one way at a time — if a webhook is set, `getUpdates()` returns nothing (or errors). Delete it with a one-off script before polling (see [Stopping the bot](#stopping-the-bot) below):
 > ```php
 > Bot::init(env('BOT_TOKEN'));

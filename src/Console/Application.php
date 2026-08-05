@@ -21,7 +21,7 @@ use Devflow\TelegramBot\Console\Commands\WebhookCommand;
 
 class Application
 {
-    private const VERSION = '1.11.0';
+    private const VERSION = '1.12.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
@@ -95,6 +95,7 @@ class Application
 
   \033[33mRuntime commands (run inside your project):\033[0m
     \033[32mpoll\033[0m                          Start long-polling mode (local dev, no webhook)
+      \033[32m--drop-pending\033[0m              …ignoring whatever queued up while the bot was down
     \033[32mbroadcast:run\033[0m                 Process pending broadcasts from the DB queue
     \033[32mmigrate\033[0m                       Run pending database migrations
     \033[32mmigrate:status\033[0m                Show which migrations have run
@@ -120,6 +121,7 @@ class Application
     vendor/bin/devflow doctor
     vendor/bin/devflow routes
     vendor/bin/devflow poll
+    vendor/bin/devflow poll --drop-pending
     vendor/bin/devflow webhook:set https://example.com/public/webhook.php
     vendor/bin/devflow migrate
     vendor/bin/devflow broadcast:run

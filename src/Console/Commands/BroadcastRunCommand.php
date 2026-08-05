@@ -6,6 +6,7 @@ use Devflow\TelegramBot\Bot;
 use Devflow\TelegramBot\Console\Commands\Concerns\ReportsDatabaseErrors;
 use Devflow\TelegramBot\Database\Models\Broadcast;
 use Devflow\TelegramBot\Database\Models\TelegramUser;
+use Devflow\TelegramBot\Exceptions\TelegramApiException;
 
 class BroadcastRunCommand
 {
@@ -70,11 +71,24 @@ class BroadcastRunCommand
 
         $sent = 0;
         $failed = 0;
+        $deactivated = 0;
 
         foreach ($users as $user) {
             try {
                 $this->sendOne($broadcast, $user->chat_id);
                 $sent++;
+            } catch (TelegramApiException $e) {
+                $failed++;
+
+                // What `is_active` is for. A user who blocked the bot is
+                // otherwise still in the recipient set for every future
+                // broadcast, so the list only ever grows slower — each run
+                // paying again for sends that can never succeed. /start sets
+                // the flag back to true if they return.
+                if ($e->isChatUnavailable()) {
+                    TelegramUser::where('chat_id', $user->chat_id)->update(['is_active' => 0]);
+                    $deactivated++;
+                }
             } catch (\Throwable) {
                 $failed++;
             }
@@ -95,7 +109,11 @@ class BroadcastRunCommand
         $broadcast->completed_at = \Carbon\Carbon::now();
         $broadcast->save();
 
-        $this->success("Broadcast #{$broadcast->id} complete — sent: {$sent}, failed: {$failed} / {$total}");
+        $note = $deactivated > 0
+            ? " ({$deactivated} unreachable, marked inactive)"
+            : '';
+
+        $this->success("Broadcast #{$broadcast->id} complete — sent: {$sent}, failed: {$failed}{$note} / {$total}");
 
         if ($broadcast->notify_chat_id) {
             try {

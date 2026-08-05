@@ -695,6 +695,11 @@ class NewProjectCommand
         - **New classes** need `composer dump-autoload`.
         - **Schema changes** go through `vendor/bin/devflow make:migration <snake_case_name>`, never
           by editing the database by hand.
+        - **Never match on a Telegram error's text.** `TelegramApiException` classifies itself:
+          `isChatUnavailable()` (blocked / deactivated — stop sending), `isPermissionDenied()`,
+          `isIgnorable()` (stale callback, no-op edit), `isRateLimited()`, `isTransient()`, and
+          `isExpected()` for "any of those". The library already absorbs expected errors in the
+          polling loop, webhook dispatch and `broadcast:run`.
 
         ## Commands
 
@@ -702,6 +707,7 @@ class NewProjectCommand
         vendor/bin/devflow doctor              # diagnose env, token, DB, routes, webhook — run this first
         vendor/bin/devflow routes              # list routes in evaluation order
         vendor/bin/devflow poll                # local dev without a webhook
+        vendor/bin/devflow poll --drop-pending # …ignoring updates queued while the bot was down
         vendor/bin/devflow migrate             # run pending migrations
         vendor/bin/devflow make:command <Name>
         vendor/bin/devflow make:migration <name>

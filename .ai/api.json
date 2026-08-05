@@ -1,7 +1,7 @@
 {
     "library": "devflow/telegram-bot",
-    "version": "1.11.0",
-    "generated_at": "2026-07-27T18:08:44+00:00",
+    "version": "1.12.0",
+    "generated_at": "2026-08-05T13:22:35+00:00",
     "generator": "vendor/bin/devflow ai:manifest",
     "rules": [
         "Every $options array (including reply_markup) must be a PHP array. Never call json_encode() yourself — HttpClient encodes it, and pre-encoding produces a double-encoded value Telegram silently ignores.",
@@ -643,7 +643,7 @@
         },
         {
             "name": "poll",
-            "signature": "poll(?callable $onError = null): never"
+            "signature": "poll(?callable $onError = null, bool $dropPending = false): never"
         },
         {
             "name": "promoteChatMember",

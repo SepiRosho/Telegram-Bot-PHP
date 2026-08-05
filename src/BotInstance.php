@@ -6,14 +6,27 @@ use Devflow\TelegramBot\Api\HttpClient;
 use Devflow\TelegramBot\Api\HttpClientInterface;
 use Devflow\TelegramBot\Api\TelegramApi;
 use Devflow\TelegramBot\Exceptions\MissingTokenException;
+use Devflow\TelegramBot\Exceptions\TelegramApiException;
 use Devflow\TelegramBot\Exceptions\WebhookException;
 use Devflow\TelegramBot\Middleware\MiddlewareInterface;
 use Devflow\TelegramBot\Routing\Router;
 use Devflow\TelegramBot\Support\Lang;
+use Devflow\TelegramBot\Support\Log;
 use Devflow\TelegramBot\Types\Update;
 
 class BotInstance
 {
+    /**
+     * getUpdates failures that no amount of waiting will fix: 401/404 mean the
+     * token is wrong or revoked, and 409 means a webhook is still registered
+     * (Telegram refuses to serve getUpdates alongside one). All three need a
+     * human, so polling stops and says so instead of looping.
+     */
+    private const POLLING_FATAL_CODES = [401, 404, 409];
+
+    /** Seconds to wait after the 1st, 2nd, … consecutive getUpdates failure. */
+    private const POLLING_BACKOFF = [1, 2, 5, 10, 30, 60];
+
     private TelegramApi $api;
     private Router $router;
     private ?string $username = null;
@@ -376,12 +389,51 @@ class BotInstance
             $userRepository = new \Devflow\TelegramBot\Database\UserRepository($this->config);
         }
 
-        $this->router->dispatch($update, $this->api, $this->config, $userRepository);
+        $this->dispatchWebhookUpdate($update, $userRepository);
     }
 
-    public function runPolling(?callable $onError = null): never
+    /**
+     * The webhook counterpart of the polling loop's per-update catch.
+     *
+     * A scaffolded project routes anything that escapes here into a "🔴 Bot
+     * crash" alert to ADMIN_CHAT_ID, so without this every user who blocks the
+     * bot pages the operator about it. On a custom entry point that doesn't
+     * force HTTP 200, it's worse: Telegram redelivers whatever wasn't answered
+     * with a 2xx, so the same update keeps arriving.
+     *
+     * Only what Telegram itself treats as routine is absorbed. A real bug
+     * still reaches your error handler untouched.
+     */
+    private function dispatchWebhookUpdate(Update $update, ?object $userRepository): void
     {
-        $offset = 0;
+        try {
+            $this->router->dispatch($update, $this->api, $this->config, $userRepository);
+        } catch (TelegramApiException $e) {
+            if (!$e->isExpected()) {
+                throw $e;
+            }
+
+            Log::save("Ignored expected Telegram error: {$e->getMessage()}", 'WARNING');
+        }
+    }
+
+    /**
+     * Long-polling loop.
+     *
+     * $onError is called as ($throwable, $retryInSeconds) — 0 meaning the loop
+     * is moving straight on to the next update rather than backing off.
+     *
+     * $dropPending discards whatever queued up while the bot was down, the
+     * polling equivalent of setWebhook's `drop_pending_updates`.
+     *
+     * Fetching and dispatching are deliberately separated. A failed *fetch* is
+     * the loop's problem and earns a backoff; a failed *dispatch* belongs to
+     * one update and must never stall the queue behind it.
+     */
+    public function runPolling(?callable $onError = null, bool $dropPending = false): never
+    {
+        $offset = $dropPending ? $this->dropPendingUpdates() : 0;
+        $failures = 0;
         $userRepository = null;
         if ($this->config['database'] ?? false) {
             $userRepository = new \Devflow\TelegramBot\Database\UserRepository($this->config);
@@ -395,19 +447,92 @@ class BotInstance
                 }
 
                 $updates = $this->api->getUpdates($params);
-
-                foreach ($updates as $updateData) {
-                    $update = Update::fromArray($updateData);
-                    $this->router->dispatch($update, $this->api, $this->config, $userRepository);
-                    $offset = $update->updateId + 1;
-                }
+                $failures = 0;
             } catch (\Throwable $e) {
-                if ($onError !== null) {
-                    ($onError)($e);
+                // Some failures never resolve by waiting. Retrying them prints
+                // the same line every few seconds until someone kills the
+                // process, which reads exactly like a hang.
+                if ($e instanceof TelegramApiException
+                    && in_array($e->telegramErrorCode(), self::POLLING_FATAL_CODES, true)) {
+                    if ($onError !== null) {
+                        ($onError)($e, 0);
+                    }
+                    throw $e;
                 }
-                sleep(5);
+
+                $wait = $this->pollingBackoff(++$failures, $e);
+                if ($onError !== null) {
+                    ($onError)($e, $wait);
+                }
+                sleep($wait);
+                continue;
+            }
+
+            foreach ($updates as $updateData) {
+                $update = Update::fromArray($updateData);
+
+                // Advance past this update *before* running it. Telegram keeps
+                // redelivering everything above the last confirmed offset, so
+                // if a handler throws — the user blocked the bot, a DB write
+                // failed — the old code never reached the line below and asked
+                // for the very same update again, forever. That is the "stuck
+                // retrying every 5 seconds" loop: not a network problem, an
+                // offset that could only advance on the happy path.
+                $offset = max($offset, $update->updateId + 1);
+
+                try {
+                    $this->router->dispatch($update, $this->api, $this->config, $userRepository);
+                } catch (\Throwable $e) {
+                    // One update's failure is not the loop's failure. No sleep:
+                    // nothing here is rate-limited, and the offset has already
+                    // moved past the update that broke.
+                    if ($onError !== null) {
+                        ($onError)($e, 0);
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Skip everything Telegram queued while the bot was offline, and return
+     * the offset that starts from "now".
+     *
+     * A negative offset asks Telegram for the *last* update rather than the
+     * oldest, so one call names the end of the backlog without downloading any
+     * of it. Confirming past that id discards the rest — the same effect as
+     * setWebhook's `drop_pending_updates`, without deleting a webhook the
+     * caller may still want registered.
+     *
+     * Deliberately not wrapped in a retry: if this call fails, polling should
+     * start from the backlog rather than silently process what it was told to
+     * drop.
+     */
+    private function dropPendingUpdates(): int
+    {
+        $updates = $this->api->getUpdates(['offset' => -1, 'limit' => 1, 'timeout' => 0]);
+        $last    = end($updates);
+
+        return is_array($last) && isset($last['update_id'])
+            ? (int) $last['update_id'] + 1
+            : 0;
+    }
+
+    /**
+     * How long to wait after a failed getUpdates. Climbs so a genuinely
+     * unreachable network isn't hammered once a second, but caps low enough
+     * that a bot notices the connection came back within a minute.
+     */
+    private function pollingBackoff(int $consecutiveFailures, \Throwable $e): int
+    {
+        // Telegram naming its own wait beats any schedule we could invent.
+        if ($e instanceof TelegramApiException && ($retryAfter = $e->retryAfter()) !== null) {
+            return max(1, $retryAfter);
+        }
+
+        $steps = self::POLLING_BACKOFF;
+
+        return $steps[min($consecutiveFailures, count($steps)) - 1];
     }
 
     // Proxy any unknown call directly to TelegramApi

@@ -18,6 +18,7 @@ Step-by-step guides for building a bot with this library.
 | [12 — i18n](12-i18n.md) | `Support\Lang` + `$ctx->t()` — key-based translations with per-user locale, the recommended i18n approach |
 | [13 — Chat Types](13-chat-types.md) | Restricting a bot to private chats, why it matters, and letting specific routes into groups |
 | [14 — Files & Limits](14-files-and-limits.md) | Uploading local files with `InputFile`; automatic 429 / `retry_after` handling |
+| [15 — Errors & Reliability](15-errors.md) | Telling "user blocked the bot" apart from a real bug; polling backoff; `poll --drop-pending` |
 
 Start with [01 — Installation](01-installation.md) if this is your first time.
 

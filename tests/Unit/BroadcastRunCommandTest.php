@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot\Tests\Unit;
 
 use Devflow\TelegramBot\Console\Commands\BroadcastRunCommand;
+use Devflow\TelegramBot\Exceptions\TelegramApiException;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 
@@ -81,7 +82,11 @@ class BroadcastRunCommandTest extends TestCase
         // BroadcastRunCommand's Bot::send*() calls hit no real network) and
         // stashes it in a global so the test can inspect what was "sent"
         // after execute() returns.
-        \$GLOBALS['__test_http'] = \$http = new FakeHttpClient();
+        //
+        // Reused rather than rebuilt: execute() require()s this same file a
+        // second time, and a fresh client there would discard any error the
+        // test queued up beforehand.
+        \$GLOBALS['__test_http'] = \$http = \$GLOBALS['__test_http'] ?? new FakeHttpClient();
         \$botInstance = new BotInstance('fake-token', ['database' => true], \$http);
 
         \$ref = new \\ReflectionClass(Bot::class);
@@ -138,6 +143,79 @@ class BroadcastRunCommandTest extends TestCase
         $broadcast = Capsule::table('telegram_broadcasts')->first();
         $this->assertSame('completed', $broadcast->status);
         $this->assertSame(2, $broadcast->sent_count);
+    }
+
+    // ─── Unreachable recipients ───────────────────────────────────────────────
+
+    /** Two recipients, a pending text broadcast, and the first send failing. */
+    private function seedTwoRecipients(\Throwable $firstSendFails): void
+    {
+        Capsule::table('telegram_users')->insert([
+            ['telegram_id' => 1, 'chat_id' => 100, 'first_name' => 'Ali'],
+            ['telegram_id' => 2, 'chat_id' => 200, 'first_name' => 'Reza'],
+        ]);
+        Capsule::table('telegram_broadcasts')->insert([
+            'message' => 'hello everyone',
+            'type'    => 'text',
+            'status'  => 'pending',
+        ]);
+
+        $GLOBALS['__test_http']->throw('sendMessage', $firstSendFails);
+    }
+
+    private function isActive(int $chatId): int
+    {
+        return (int) Capsule::table('telegram_users')->where('chat_id', $chatId)->value('is_active');
+    }
+
+    public function test_a_user_who_blocked_the_bot_is_marked_inactive(): void
+    {
+        // Without this the recipient stays in the set for ever, and every
+        // future broadcast pays again for a send that cannot succeed.
+        $this->seedTwoRecipients(
+            new TelegramApiException('Forbidden: bot was blocked by the user', 403),
+        );
+
+        ob_start();
+        (new BroadcastRunCommand())->execute([]);
+        ob_get_clean();
+
+        $this->assertSame(0, $this->isActive(100));
+        $this->assertSame(1, $this->isActive(200), 'the healthy recipient must be untouched');
+
+        $broadcast = Capsule::table('telegram_broadcasts')->first();
+        $this->assertSame(1, $broadcast->sent_count);
+        $this->assertSame(1, $broadcast->failed_count);
+        $this->assertSame('completed', $broadcast->status);
+    }
+
+    public function test_a_rate_limit_does_not_cost_the_recipient_their_subscription(): void
+    {
+        // 429 says "slow down", not "this user is gone" — deactivating here
+        // would silently shrink the audience every time a broadcast ran hot.
+        $this->seedTwoRecipients(
+            new TelegramApiException('Too Many Requests: retry after 5', 429, null, ['retry_after' => 5]),
+        );
+
+        ob_start();
+        (new BroadcastRunCommand())->execute([]);
+        ob_get_clean();
+
+        $this->assertSame(1, $this->isActive(100));
+        $this->assertSame(1, $this->isActive(200));
+    }
+
+    public function test_a_group_permission_error_does_not_deactivate_the_chat(): void
+    {
+        $this->seedTwoRecipients(
+            new TelegramApiException('Bad Request: not enough rights to send text messages to the chat', 403),
+        );
+
+        ob_start();
+        (new BroadcastRunCommand())->execute([]);
+        ob_get_clean();
+
+        $this->assertSame(1, $this->isActive(100));
     }
 
     public function test_notifies_admin_chat_on_completion(): void

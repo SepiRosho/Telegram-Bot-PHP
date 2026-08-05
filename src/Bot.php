@@ -365,9 +365,14 @@ class Bot
         return static::getInstance()->api()->getUpdates($options);
     }
 
-    public static function poll(?callable $onError = null): never
+    /**
+     * @param bool $dropPending Discard updates queued while the bot was down,
+     *                          the polling equivalent of setWebhook's
+     *                          `drop_pending_updates`.
+     */
+    public static function poll(?callable $onError = null, bool $dropPending = false): never
     {
-        static::getInstance()->runPolling($onError);
+        static::getInstance()->runPolling($onError, $dropPending);
     }
 
     // -------------------------------------------------------------------------

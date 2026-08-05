@@ -376,6 +376,7 @@ vendor/bin/devflow new <name>              # scaffold a project
 vendor/bin/devflow doctor                  # diagnose env, token, DB, routes, webhook
 vendor/bin/devflow routes                  # list routes in evaluation order
 vendor/bin/devflow poll                    # long-polling (needs webhook:delete first)
+vendor/bin/devflow poll --drop-pending     # …skipping whatever queued while the bot was down
 vendor/bin/devflow broadcast:run           # process pending broadcasts
 vendor/bin/devflow migrate                 # run pending migrations
 vendor/bin/devflow migrate:status          # applied / Pending / Untracked
@@ -423,6 +424,47 @@ tables still need a real database.
 `TelegramApiException` carries `telegramErrorCode()`, `parameters()`, `retryAfter()`,
 `migrateToChatId()`. 429s are retried automatically within `max_retries`/`max_retry_after`; if one
 still surfaces, `retryAfter()` says how long Telegram wanted.
+
+### Classifying an error
+
+Telegram reports "this user blocked your bot" exactly the way it reports a malformed request, so
+the exception classifies itself. **Use these instead of matching on `getMessage()`** — the tables
+behind them cover every description Telegram is known to return.
+
+| Predicate | Means | Do |
+|---|---|---|
+| `isChatUnavailable()` | Blocked, deactivated, kicked, chat not found | Stop sending; mark the user inactive |
+| `isPermissionDenied()` | In the chat, but not allowed to post | Fix rights — *not* a dead user |
+| `isIgnorable()` | No-op edit, stale callback query, already-deleted message | Swallow it |
+| `isRateLimited()` | 429 | Wait `retryAfter()` |
+| `isTransient()` | 5xx, network failure | Retry later |
+| `isExpected()` | Any of the above | Don't treat as a crash |
+
+```php
+try {
+    $ctx->reply($text);
+} catch (TelegramApiException $e) {
+    if ($e->isChatUnavailable()) {
+        $ctx->user()?->update(['is_active' => false]);
+        return;
+    }
+    throw $e;
+}
+```
+
+`isChatUnavailable()` and `isPermissionDenied()` never both return true: deactivating a user over a
+group permission problem would drop them from broadcasts for a reason unrelated to them.
+
+### What the library already handles
+
+- **Polling** advances its offset *before* dispatching, so a handler that throws can never cause the
+  same update to be redelivered forever. Fetch failures back off 1→2→5→10→30→60s; 401/404/409 stop
+  the loop with an explanation instead of retrying something a human has to fix.
+- **Webhook dispatch** absorbs `isExpected()` errors, so a blocked user doesn't page `ADMIN_CHAT_ID`.
+- **`broadcast:run`** sets `is_active = 0` on recipients that report `isChatUnavailable()`, and
+  reports the count. `/start` reactivates them if they come back.
+
+### Other exceptions
 
 `MissingTokenException` means `BOT_TOKEN` is empty. `WebhookException` covers a bad secret token or
 malformed payload. `BotNotInitializedException` means `Bot::init()` was never called.
