@@ -21,7 +21,7 @@ use Devflow\TelegramBot\Console\Commands\WebhookCommand;
 
 class Application
 {
-    private const VERSION = '1.12.0';
+    private const VERSION = '1.12.1';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
