@@ -12,11 +12,13 @@ return new class extends Migration
             $table->id();
             $table->text('message');
             $table->string('type', 50)->default('text');
+            $table->string('media')->nullable();
             $table->json('options')->nullable();
             $table->enum('status', ['pending', 'running', 'completed', 'failed'])->default('pending');
             $table->unsignedInteger('total_recipients')->default(0);
             $table->unsignedInteger('sent_count')->default(0);
             $table->unsignedInteger('failed_count')->default(0);
+            $table->unsignedBigInteger('notify_chat_id')->nullable();
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();

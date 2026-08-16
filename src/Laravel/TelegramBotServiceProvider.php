@@ -26,6 +26,18 @@ class TelegramBotServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // README.md and examples/05_laravel.php both show calling the static
+        // Bot:: facade (Bot::onCommand(), etc.) directly from a consuming
+        // app's own boot(). Bot::init() only happens as a side effect of the
+        // BotInstance::class singleton factory in register() above, and
+        // nothing forces that factory to resolve on its own — so without this,
+        // the static facade is never actually initialized by the time that
+        // documented code runs, and it throws BotNotInitializedException.
+        // Resolving it here, in this provider's own boot(), guarantees it
+        // happens before any other provider's boot() gets a chance to call
+        // Bot::* (Laravel always boots providers in registration order).
+        $this->app->make(BotInstance::class);
+
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__ . '/../../config/telegram.php' => config_path('telegram.php'),

@@ -286,6 +286,22 @@ Bot::onStep('register.photo', function (Context $ctx) {
 
 Needs `'database' => true`. `onStep('*')` never matches a user with no active step.
 
+`vendor/bin/devflow make:flow <Name>` generates a class with a `match ($ctx->step())` dispatcher
+instead — a different pattern from the closures above. It needs manual wiring: register a command
+that calls `$ctx->setStep(...)`, then route matching text to it from `onText()` by step prefix:
+
+```php
+Bot::onText(function (Context $ctx) {
+    if (str_starts_with((string) $ctx->step(), 'register.')) {
+        (new \App\Flows\RegisterFlow())->handle($ctx);
+        return;
+    }
+    $ctx->reply($ctx->text());
+});
+```
+
+Full walkthrough: [docs/07-flows.md](docs/07-flows.md#a-complete-registration-flow).
+
 ---
 
 ## 10. Sending files
@@ -413,9 +429,42 @@ $fake->assertNotSent('sendPhoto');
 `FakeUserRepository` (no DB). Works without PHPUnit installed — assertions throw
 `AssertionFailedException` instead.
 
+**`Bot::fake()`'s `database` config defaults to `true`** — unlike production, which defaults to
+`false` (§1.7). A test written without setting `database` explicitly gets a working `$ctx->user()`
+even if the handler would crash on `null` in production. Pass `['database' => false]` if you want the
+fake to match a bot that never configured the database at all.
+
 `UpdateFactory` builds updates: `command()`, `text()`, `callbackQuery()`, `photo()`.
 Note `FakeUser` is an attribute bag, not your real `user_model` — full-stack tests against your own
 tables still need a real database.
+
+---
+
+## 16. Laravel integration (optional)
+
+The library is standalone-first; Laravel is an opt-in layer via `Devflow\TelegramBot\Laravel\TelegramBotServiceProvider`
+(auto-discovered).
+
+- **Register handlers with the `TelegramBot` facade, not the static `Bot::` facade**, from inside a
+  Laravel app's own `boot()` (e.g. `AppServiceProvider::boot()`):
+  ```php
+  use Devflow\TelegramBot\Laravel\Facades\TelegramBot;
+
+  TelegramBot::onCommand('start', function (Context $ctx) { $ctx->reply('Hi!'); });
+  ```
+  `Bot::onCommand()` also works as long as `TelegramBotServiceProvider` is registered (it forces
+  `Bot::init()` during its own `boot()`, which Laravel always runs before a consuming app's provider).
+- **Config**: `config/telegram.php` (publish with `--tag=telegram-config`) ships `token`,
+  `webhook_secret`, `database`, `webhook_route`. The whole array is passed to `Bot::init()`, so add
+  any other key from §1's config table (`proxy`, `lang_path`, `allowed_chat_types`, ...) to it
+  directly — they aren't in the file by default.
+- **Migrations**: `--tag=telegram-migrations` publishes the same `telegram_users` /
+  `bot_settings` / `telegram_broadcasts` schema `devflow migrate` uses standalone.
+- **Webhook route**: auto-registered at `telegram.webhook_route` (default `telegram/webhook`) —
+  set it to `null` to wire your own route calling `app(BotInstance::class)->run()`.
+- **Artisan commands**: `php artisan telegram:set-webhook <url>`, `telegram:delete-webhook`,
+  `telegram:webhook-info`. Need `illuminate/console` on the classpath (always present in a real
+  Laravel app).
 
 ---
 
