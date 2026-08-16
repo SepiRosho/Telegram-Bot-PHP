@@ -250,7 +250,7 @@ Once configured, `$ctx->user()` and auto-registration on first `/start` both ret
 
 ### Seeding fields on first contact
 
-Auto-registration runs on **every** update and only sets a fixed set of columns (name, username, language code). To seed additional fields — a role, a referral code, a joined-at timestamp — the moment a user is first seen, without an idempotent check inside `/start`, use the `user_defaults` config key:
+Auto-registration runs on **every** update and only sets a fixed set of columns (name, username, language code). To seed additional fields — a role, a referral code, a joined-at timestamp — the moment a user is first seen, without an idempotent check inside `/start`, use the `user_defaults` config key. `vendor/bin/devflow new` scaffolds exactly this pattern in `bootstrap/app.php` to promote `ADMIN_CHAT_ID` to `'superadmin'`:
 
 ```php
 Bot::init(env('BOT_TOKEN'), [

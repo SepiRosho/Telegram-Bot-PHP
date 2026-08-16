@@ -93,6 +93,7 @@ logs/                    Daily log files
 | `proxy` | ?string | `null` | `http://…` or `socks5://host:1080`. |
 | `lang_path` | ?string | `null` | Directory of `{locale}.php` files. |
 | `default_locale` | string | `'en'` | Fallback locale. |
+| `language_code` | string | `'auto'` | `'auto'` records each user's own Telegram language. Any other value (e.g. `'fa'`) forces every user's `language_code` *and* `language` columns to it, overriding what Telegram reports. See §12. |
 | `user_model` | class-string | `TelegramUser::class` | Your Eloquent subclass. |
 | `user_defaults` | ?callable | `null` | `callable(Update): array`, merged in on first insert. |
 | `debug` | bool | `false` | Logs every route match/no-match, including chat-filter drops. |
@@ -102,9 +103,12 @@ logs/                    Daily log files
 | `max_retry_after` | int | `60` | Longest `retry_after` (seconds) worth waiting on. |
 | `timeout` | int | `30` | HTTP timeout, seconds. |
 
-Env vars in a scaffolded `.env`: `BOT_TOKEN`, `ADMIN_CHAT_ID`, `WEBHOOK_SECRET`, `PROXY_URL`,
-`BROADCAST_RATE`, `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
-`lang_path` and `default_locale` are **not** env vars — they're hardcoded in `bootstrap/app.php`.
+Env vars in a scaffolded `.env`: `BOT_TOKEN`, `ADMIN_CHAT_ID`, `LANGUAGE_CODE`, `WEBHOOK_SECRET`,
+`PROXY_URL`, `BROADCAST_RATE`, `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`,
+`DB_PASSWORD`. `lang_path` and `default_locale` are **not** env vars — they're hardcoded in
+`bootstrap/app.php`. `ADMIN_CHAT_ID` is not read directly by the library either — the scaffolded
+`bootstrap/app.php` wires it into `user_defaults` to promote that Telegram user id to `'superadmin'`
+on first contact.
 
 ---
 

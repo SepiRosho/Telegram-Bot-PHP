@@ -35,6 +35,7 @@ class UserRepositoryTest extends TestCase
             $table->string('last_name')->nullable();
             $table->string('username')->nullable();
             $table->string('language_code', 10)->nullable();
+            $table->string('language', 10)->nullable();
             $table->string('role', 50)->default('user');
             $table->boolean('is_active')->default(true);
             $table->timestamp('joined_at')->nullable();
@@ -97,5 +98,60 @@ class UserRepositoryTest extends TestCase
 
         $this->assertSame('fa', $second->language_code);
         $this->assertSame('fa', $second->fresh()->language_code);
+    }
+
+    public function test_language_code_config_of_auto_preserves_telegrams_reported_language(): void
+    {
+        $repo = new UserRepository(['language_code' => 'auto']);
+
+        $user = $repo->findOrCreateByUpdate(UpdateFactory::command('start', overrides: [
+            'message' => ['from' => ['language_code' => 'de']],
+        ]));
+
+        $this->assertSame('de', $user->language_code);
+        $this->assertNull($user->language);
+    }
+
+    public function test_language_code_config_forces_language_on_creation(): void
+    {
+        $repo = new UserRepository(['language_code' => 'fa']);
+
+        $user = $repo->findOrCreateByUpdate(UpdateFactory::command('start', overrides: [
+            'message' => ['from' => ['language_code' => 'de']],
+        ]));
+
+        $this->assertSame('fa', $user->language_code);
+        $this->assertSame('fa', $user->language);
+    }
+
+    public function test_language_code_config_keeps_forcing_language_on_returning_users(): void
+    {
+        $repo = new UserRepository(['language_code' => 'fa']);
+
+        $first = $repo->findOrCreateByUpdate(UpdateFactory::command('start'));
+        $first->language = 'en';
+        $first->save();
+
+        $second = $repo->findOrCreateByUpdate(UpdateFactory::text('hi', [
+            'message' => ['from' => ['language_code' => 'de']],
+        ]));
+
+        $this->assertSame('fa', $second->language_code);
+        $this->assertSame('fa', $second->fresh()->language);
+    }
+
+    public function test_admin_chat_id_promotion_via_user_defaults_only_applies_on_creation(): void
+    {
+        $repo = new UserRepository([
+            'user_defaults' => fn($update) => [
+                'role' => (string) $update->message?->from?->id === '999' ? 'superadmin' : 'user',
+            ],
+        ]);
+
+        $admin = $repo->findOrCreateByUpdate(UpdateFactory::command('start', userId: 999));
+        $this->assertSame('superadmin', $admin->role);
+
+        $regular = $repo->findOrCreateByUpdate(UpdateFactory::command('start', userId: 123));
+        $this->assertSame('user', $regular->role);
     }
 }

@@ -159,6 +159,11 @@ class NewProjectCommand
         BOT_TOKEN=your_bot_token_here
         ADMIN_CHAT_ID=
 
+        # 'auto' records each user's own Telegram client language. Set this to a
+        # fixed code (e.g. fa, en) to ignore that and lock every user to one
+        # language instead — for bots that don't offer multi-language support.
+        LANGUAGE_CODE=auto
+
         # Optional: set a secret token when registering your webhook (recommended for production).
         # Pass this same value to setWebhook as the secret_token option.
         WEBHOOK_SECRET=
@@ -276,16 +281,29 @@ class NewProjectCommand
         //
         // To serve groups too, add 'group' and 'supergroup' here, or expose
         // just a few routes with Bot::chatTypes([...], fn() => ...).
+        //
+        // language_code: 'auto' (default) records each user's own Telegram
+        // client language. Set LANGUAGE_CODE in .env to a fixed code to lock
+        // every user to it instead — see docs/12-i18n.md.
+        //
+        // user_defaults: promotes ADMIN_CHAT_ID to 'superadmin' the moment
+        // they're first seen. Runs once per telegram_id, on creation only.
         Bot::init(env('BOT_TOKEN'), [
             'database'           => true,
             'webhook_secret'     => env('WEBHOOK_SECRET') ?: null,
             'proxy'              => env('PROXY_URL') ?: null,
             'lang_path'          => __DIR__ . '/../lang',
             'default_locale'     => 'en',
+            'language_code'      => env('LANGUAGE_CODE', 'auto'),
             'allowed_chat_types' => ['private'],
             // Point at your own model (see app/Models/User.php) to add
             // columns/relationships/scopes on top of the base TelegramUser.
             'user_model'         => \App\Models\User::class,
+            'user_defaults'      => fn (\Devflow\TelegramBot\Types\Update $update): array => [
+                'role' => env('ADMIN_CHAT_ID') && (string) $update->message?->from?->id === trim((string) env('ADMIN_CHAT_ID'))
+                    ? 'superadmin'
+                    : 'user',
+            ],
         ]);
 
         // ─── Middleware ────────────────────────────────────────────────────────
@@ -435,7 +453,6 @@ class NewProjectCommand
 
         namespace App\Handlers;
 
-        use App\Models\User;
         use Devflow\TelegramBot\Bot;
         use Devflow\TelegramBot\Context;
 
@@ -443,29 +460,13 @@ class NewProjectCommand
         {
             public static function register(): void
             {
-                // ─── /start — Auto-registration ──────────────────────────────────
+                // ─── /start ────────────────────────────────────────────────────────
+                // The user row already exists by the time this runs — auto-
+                // registration (including the superadmin promotion configured via
+                // 'user_defaults' in bootstrap/app.php) happens in $ctx->user()
+                // before any handler is dispatched. See docs/06-database.md.
                 Bot::onCommand('start', function (Context $ctx) {
-                    $user = $ctx->user();
-
-                    if ($user === null) {
-                        $adminId = env('ADMIN_CHAT_ID');
-                        $role    = ($adminId && (string) $ctx->userId() === trim((string) $adminId))
-                            ? 'superadmin'
-                            : 'user';
-
-                        $user = User::create([
-                            'telegram_id'   => $ctx->userId(),
-                            'chat_id'       => $ctx->chatId(),
-                            'first_name'    => $ctx->from()?->firstName ?? '',
-                            'last_name'     => $ctx->from()?->lastName,
-                            'username'      => $ctx->from()?->username,
-                            'language_code' => $ctx->from()?->languageCode,
-                            'role'          => $role,
-                            'joined_at'     => date('Y-m-d H:i:s'),
-                        ]);
-                    }
-
-                    $user->update(['current_panel' => 'user']);
+                    $ctx->user()?->update(['current_panel' => 'user']);
                     $name = $ctx->from()?->firstName ?? 'there';
 
                     $ctx->reply($ctx->t('welcome', ['name' => $name]), [

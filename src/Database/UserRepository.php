@@ -27,13 +27,27 @@ class UserRepository
 
         $modelClass = $this->config['user_model'] ?? TelegramUser::class;
 
+        // 'language_code' config: 'auto' (default) records whatever Telegram
+        // reports. Any other value (e.g. 'fa') locks every user to that
+        // language instead — for bots that don't offer multi-language
+        // support and don't want per-user locale drift.
+        $forcedLocale = $this->config['language_code'] ?? 'auto';
+        $forcedLocale = ($forcedLocale !== null && $forcedLocale !== '' && $forcedLocale !== 'auto')
+            ? $forcedLocale
+            : null;
+        $languageCode = $forcedLocale ?? $from->languageCode;
+
         $attributes = [
             'chat_id'       => $chatId,
             'first_name'    => $from->firstName,
             'last_name'     => $from->lastName,
             'username'      => $from->username,
-            'language_code' => $from->languageCode,
+            'language_code' => $languageCode,
         ];
+
+        if ($forcedLocale !== null) {
+            $attributes['language'] = $forcedLocale;
+        }
 
         if (isset($this->config['user_defaults']) && is_callable($this->config['user_defaults'])) {
             $attributes = array_merge($attributes, ($this->config['user_defaults'])($update));
@@ -45,8 +59,12 @@ class UserRepository
         $user->first_name    = $from->firstName;
         $user->last_name     = $from->lastName;
         $user->username      = $from->username;
-        $user->language_code = $from->languageCode;
+        $user->language_code = $languageCode;
         $user->is_active     = true;
+
+        if ($forcedLocale !== null) {
+            $user->language = $forcedLocale;
+        }
 
         if ($user->isDirty()) {
             $user->save();
