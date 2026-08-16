@@ -56,6 +56,33 @@ class InputTest extends TestCase
         $this->assertSame(0, Input::toInt('abc', 0));    // explicit default
     }
 
+    public function test_to_int_rejects_values_outside_php_int_range_instead_of_clamping(): void
+    {
+        // (int) '99999999999999999999' silently clamps to PHP_INT_MAX — a
+        // caller has no way to tell that happened, so toInt() must not do it.
+        $this->assertNull(Input::toInt('99999999999999999999'));
+        $this->assertSame(0, Input::toInt('-99999999999999999999', 0));
+    }
+
+    public function test_is_phone_accepts_common_real_world_formats(): void
+    {
+        $this->assertTrue(Input::isPhone('+1 (555) 123-4567'));
+        $this->assertTrue(Input::isPhone('123.456.7890'));
+        $this->assertTrue(Input::isPhone('09123456789'));
+    }
+
+    public function test_is_phone_accepts_persian_and_arabic_indic_digits(): void
+    {
+        $this->assertTrue(Input::isPhone('۰۹۱۲۳۴۵۶۷۸۹'));
+        $this->assertTrue(Input::isPhone('٠٩١٢٣٤٥٦٧٨٩'));
+    }
+
+    public function test_is_phone_rejects_non_numeric_text(): void
+    {
+        $this->assertFalse(Input::isPhone('not a phone'));
+        $this->assertFalse(Input::isPhone(''));
+    }
+
     public function test_clean_strips_tags_and_trims(): void
     {
         $result = Input::clean('  <b>Hello</b> world  ');

@@ -28,18 +28,32 @@ class Input
         return filter_var($url, FILTER_VALIDATE_URL) !== false;
     }
 
+    private const DIGIT_TRANSLATIONS = [
+        // Persian/Extended Arabic-Indic
+        '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+        '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+        // Arabic-Indic
+        '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+        '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+    ];
+
     public static function isPhone(string $value): bool
     {
-        return (bool) preg_match('/^\+?[\d\s\-]{7,15}$/', trim($value));
+        $normalized = strtr(trim($value), self::DIGIT_TRANSLATIONS);
+        $normalized = preg_replace('/[\s().\-]/u', '', $normalized);
+
+        return (bool) preg_match('/^\+?\d{7,15}$/', $normalized);
     }
 
+    /** Unlike (int) casting, a numeric string outside PHP_INT range returns $default instead of silently clamping. */
     public static function toInt(string $value, ?int $default = null): ?int
     {
         $trimmed = trim($value);
         if (!self::isInt($trimmed)) {
             return $default;
         }
-        return (int) $trimmed;
+        $int = filter_var($trimmed, FILTER_VALIDATE_INT);
+        return $int === false ? $default : $int;
     }
 
     public static function toFloat(string $value, ?float $default = null): ?float

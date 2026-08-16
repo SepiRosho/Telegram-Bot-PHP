@@ -22,7 +22,7 @@ class UpdateFactory
 
     public static function text(string $text, array $overrides = []): Update
     {
-        return self::raw(array_replace_recursive([
+        return self::raw(self::mergeOverrides([
             'update_id' => self::$nextUpdateId++,
             'message'   => [
                 'message_id' => self::$nextMessageId++,
@@ -34,21 +34,28 @@ class UpdateFactory
         ], $overrides));
     }
 
-    public static function command(string $command, array $args = [], array $overrides = []): Update
+    /** @param int|null $userId Overrides the sender's id (message.from.id). */
+    public static function command(string $command, array $args = [], array $overrides = [], ?int $userId = null): Update
     {
         $name = ltrim($command, '/');
         $text = '/' . $name . ($args === [] ? '' : ' ' . implode(' ', $args));
 
-        return self::text($text, array_replace_recursive([
+        $merged = self::mergeOverrides([
             'message' => [
                 'entities' => [['type' => 'bot_command', 'offset' => 0, 'length' => strlen($name) + 1]],
             ],
-        ], $overrides));
+        ], $overrides);
+
+        if ($userId !== null) {
+            $merged = self::mergeOverrides($merged, ['message' => ['from' => ['id' => $userId]]]);
+        }
+
+        return self::text($text, $merged);
     }
 
     public static function callback(string $data, array $overrides = []): Update
     {
-        return self::raw(array_replace_recursive([
+        return self::raw(self::mergeOverrides([
             'update_id'      => self::$nextUpdateId++,
             'callback_query' => [
                 'id'      => 'cb' . self::$nextUpdateId,
@@ -62,6 +69,12 @@ class UpdateFactory
                 ],
             ],
         ], $overrides));
+    }
+
+    /** Alias of callback() — matches the naming AGENTS.md documents. */
+    public static function callbackQuery(string $data, array $overrides = []): Update
+    {
+        return self::callback($data, $overrides);
     }
 
     public static function photo(array $overrides = []): Update
@@ -81,7 +94,7 @@ class UpdateFactory
 
     private static function media(array $mediaField, array $overrides): Update
     {
-        return self::raw(array_replace_recursive([
+        return self::raw(self::mergeOverrides([
             'update_id' => self::$nextUpdateId++,
             'message'   => array_merge([
                 'message_id' => self::$nextMessageId++,
@@ -96,5 +109,26 @@ class UpdateFactory
     public static function raw(array $data): Update
     {
         return Update::fromArray($data);
+    }
+
+    /**
+     * Like array_replace_recursive(), except a list value (entities, photo, ...)
+     * in $overrides replaces the base list wholesale instead of merging by
+     * index — array_replace_recursive can't remove or fully swap a list, since
+     * it only ever overwrites the indices present in the override.
+     */
+    private static function mergeOverrides(array $base, array $overrides): array
+    {
+        foreach ($overrides as $key => $value) {
+            if (is_array($value) && array_is_list($value)) {
+                $base[$key] = $value;
+            } elseif (is_array($value) && isset($base[$key]) && is_array($base[$key]) && !array_is_list($base[$key])) {
+                $base[$key] = self::mergeOverrides($base[$key], $value);
+            } else {
+                $base[$key] = $value;
+            }
+        }
+
+        return $base;
     }
 }

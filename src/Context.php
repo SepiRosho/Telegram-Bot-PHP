@@ -39,7 +39,13 @@ class Context
 
     public function message(): ?Message
     {
-        return $this->update->message ?? $this->update->editedMessage ?? $this->update->channelPost;
+        return $this->update->message
+            ?? $this->update->editedMessage
+            ?? $this->update->channelPost
+            ?? $this->update->editedChannelPost
+            ?? $this->update->businessMessage
+            ?? $this->update->editedBusinessMessage
+            ?? $this->update->guestMessage;
     }
 
     public function callbackQuery(): ?CallbackQuery
@@ -163,13 +169,31 @@ class Context
         return $this->api->sendChatAction($this->chatId(), 'typing');
     }
 
-    public function editReply(string $text, array $options = []): Message
+    /**
+     * A callback query fired from an inline-mode result (a message the bot
+     * never sent into a chat it can see) carries only inline_message_id, no
+     * message — that's the one case chatId()/message-based edits can't reach.
+     */
+    private function inlineMessageId(): ?string
+    {
+        return $this->update->callbackQuery?->message === null
+            ? $this->update->callbackQuery?->inlineMessageId
+            : null;
+    }
+
+    public function editReply(string $text, array $options = []): Message|bool
     {
         $messageId = $this->update->callbackQuery?->message?->messageId;
-        if ($messageId === null) {
-            return $this->reply($text, $options);
+        if ($messageId !== null) {
+            return $this->api->editMessageText($this->chatId(), $messageId, $text, $options);
         }
-        return $this->api->editMessageText($this->chatId(), $messageId, $text, $options);
+
+        $inlineMessageId = $this->inlineMessageId();
+        if ($inlineMessageId !== null) {
+            return $this->api->editInlineMessageText($inlineMessageId, $text, $options);
+        }
+
+        return $this->reply($text, $options);
     }
 
     /**
@@ -178,11 +202,24 @@ class Context
      * editMessageCaption() when the target message is media, since
      * editMessageText can't touch a caption.
      */
-    public function editReplySafe(string $text, array $options = []): ?Message
+    public function editReplySafe(string $text, array $options = []): Message|bool|null
     {
         $messageId = $this->update->callbackQuery?->message?->messageId;
+
         if ($messageId === null) {
-            return $this->reply($text, $options);
+            $inlineMessageId = $this->inlineMessageId();
+            if ($inlineMessageId === null) {
+                return $this->reply($text, $options);
+            }
+
+            try {
+                return $this->api->editInlineMessageText($inlineMessageId, $text, $options);
+            } catch (TelegramApiException $e) {
+                if ($this->isNotModifiedError($e)) {
+                    return null;
+                }
+                throw $e;
+            }
         }
 
         $target = $this->update->callbackQuery?->message;
@@ -204,8 +241,21 @@ class Context
     public function removeKeyboard(): bool
     {
         $messageId = $this->update->callbackQuery?->message?->messageId ?? $this->message()?->messageId;
+
         if ($messageId === null) {
-            return false;
+            $inlineMessageId = $this->inlineMessageId();
+            if ($inlineMessageId === null) {
+                return false;
+            }
+
+            try {
+                return $this->api->editInlineMessageReplyMarkup($inlineMessageId, ['inline_keyboard' => []]);
+            } catch (TelegramApiException $e) {
+                if ($this->isNotModifiedError($e)) {
+                    return false;
+                }
+                throw $e;
+            }
         }
 
         try {

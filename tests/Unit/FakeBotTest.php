@@ -120,6 +120,20 @@ class FakeBotTest extends TestCase
         $this->assertSame(1, $fake->users()->find(1)?->id);
     }
 
+    public function test_get_webhook_info_has_a_canned_response_instead_of_type_erroring(): void
+    {
+        // getWebhookInfo(): array is strictly typed; FakeHttpClient's generic
+        // default (bare `true`) used to blow up any test that followed the
+        // library's own documented Bot::fake() pattern against this call.
+        Bot::fake();
+
+        $info = Bot::getWebhookInfo();
+
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('url', $info);
+        $this->assertArrayHasKey('pending_update_count', $info);
+    }
+
     public function test_distinct_users_get_distinct_ids(): void
     {
         $fake = Bot::fake();

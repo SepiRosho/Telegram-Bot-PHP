@@ -95,4 +95,73 @@ class ContextSafeEditTest extends TestCase
 
         $this->assertFalse($ctx->removeKeyboard());
     }
+
+    // -------------------------------------------------------------------------
+    // Inline-mode callbacks — no ->message, only inline_message_id. Used to
+    // silently fall through to sendMessage(chat_id: 0) instead of editing.
+    // -------------------------------------------------------------------------
+
+    private function inlineCallbackUpdate(): \Devflow\TelegramBot\Types\Update
+    {
+        return UpdateFactory::raw([
+            'update_id'      => 1,
+            'callback_query' => [
+                'id'                => 'cb1',
+                'from'              => ['id' => 200, 'is_bot' => false, 'first_name' => 'Ali'],
+                'data'              => 'x',
+                'inline_message_id' => 'INLINE123',
+            ],
+        ]);
+    }
+
+    public function test_edit_reply_on_inline_callback_uses_inline_message_id(): void
+    {
+        $http = $this->createMock(HttpClientInterface::class);
+        $capturedMethod = null;
+        $capturedParams = null;
+        $http->method('post')->willReturnCallback(function (string $method, array $params) use (&$capturedMethod, &$capturedParams) {
+            $capturedMethod = $method;
+            $capturedParams = $params;
+            return true;
+        });
+
+        $ctx = new Context($this->inlineCallbackUpdate(), new TelegramApi($http));
+        $result = $ctx->editReply('edited');
+
+        $this->assertSame('editMessageText', $capturedMethod);
+        $this->assertSame('INLINE123', $capturedParams['inline_message_id']);
+        $this->assertArrayNotHasKey('chat_id', $capturedParams);
+        $this->assertTrue($result);
+    }
+
+    public function test_edit_reply_safe_on_inline_callback_uses_inline_message_id(): void
+    {
+        $http = $this->createMock(HttpClientInterface::class);
+        $capturedParams = null;
+        $http->method('post')->willReturnCallback(function (string $method, array $params) use (&$capturedParams) {
+            $capturedParams = $params;
+            return true;
+        });
+
+        $ctx = new Context($this->inlineCallbackUpdate(), new TelegramApi($http));
+        $result = $ctx->editReplySafe('edited');
+
+        $this->assertSame('INLINE123', $capturedParams['inline_message_id']);
+        $this->assertTrue($result);
+    }
+
+    public function test_remove_keyboard_on_inline_callback_uses_inline_message_id(): void
+    {
+        $http = $this->createMock(HttpClientInterface::class);
+        $capturedParams = null;
+        $http->method('post')->willReturnCallback(function (string $method, array $params) use (&$capturedParams) {
+            $capturedParams = $params;
+            return true;
+        });
+
+        $ctx = new Context($this->inlineCallbackUpdate(), new TelegramApi($http));
+
+        $this->assertTrue($ctx->removeKeyboard());
+        $this->assertSame('INLINE123', $capturedParams['inline_message_id']);
+    }
 }

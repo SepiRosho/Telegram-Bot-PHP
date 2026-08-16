@@ -58,4 +58,35 @@ class UpdateFactoryTest extends TestCase
         $this->assertSame(999, $update->message->chat->id);
         $this->assertSame('hi', $update->message->text);
     }
+
+    public function test_list_field_overrides_replace_rather_than_merge_by_index(): void
+    {
+        // array_replace_recursive can only overwrite indices present in the
+        // override — it can never shrink or clear a list. An empty override
+        // must actually remove the default bot_command entity.
+        $update = UpdateFactory::command('start', overrides: ['message' => ['entities' => []]]);
+
+        $this->assertSame([], $update->message->entities);
+    }
+
+    public function test_list_field_overrides_can_fully_swap_a_list(): void
+    {
+        $update = UpdateFactory::photo(['message' => ['photo' => [['file_id' => 'custom', 'width' => 1, 'height' => 1]]]]);
+
+        $this->assertSame([['file_id' => 'custom', 'width' => 1, 'height' => 1]], $update->message->photo);
+    }
+
+    public function test_command_accepts_a_named_user_id(): void
+    {
+        $update = UpdateFactory::command('start', userId: 1);
+
+        $this->assertSame(1, $update->message->from->id);
+    }
+
+    public function test_callback_query_is_an_alias_of_callback(): void
+    {
+        $update = UpdateFactory::callbackQuery('btn_yes');
+
+        $this->assertSame('btn_yes', $update->callbackQuery->data);
+    }
 }

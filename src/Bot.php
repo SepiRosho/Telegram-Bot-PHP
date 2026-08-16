@@ -114,6 +114,11 @@ class Bot
         return static::getInstance()->onChannelPost($handler, $middleware);
     }
 
+    public static function onEditedChannelPost(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onEditedChannelPost($handler, $middleware);
+    }
+
     public static function onPoll(callable|string $handler, array $middleware = []): BotInstance
     {
         return static::getInstance()->onPoll($handler, $middleware);

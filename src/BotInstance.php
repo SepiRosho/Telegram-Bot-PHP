@@ -195,6 +195,12 @@ class BotInstance
         return $this;
     }
 
+    public function onEditedChannelPost(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('edited_channel_post', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
     public function onPoll(callable|string $handler, array $middleware = []): static
     {
         $this->router->addRoute('poll', '*', $handler, middleware: $middleware);
@@ -380,6 +386,10 @@ class BotInstance
 
         if (!is_array($data)) {
             throw new WebhookException('Invalid JSON in webhook payload.');
+        }
+
+        if (!isset($data['update_id'])) {
+            throw new WebhookException('Invalid update payload: missing update_id.');
         }
 
         $update = Update::fromArray($data);

@@ -81,4 +81,21 @@ class UserRepositoryTest extends TestCase
 
         $this->assertSame('user', $user->fresh()->role);
     }
+
+    public function test_language_code_is_refreshed_on_returning_users(): void
+    {
+        $repo = new UserRepository();
+
+        $first = $repo->findOrCreateByUpdate(UpdateFactory::command('start', overrides: [
+            'message' => ['from' => ['language_code' => 'en']],
+        ]));
+        $this->assertSame('en', $first->language_code);
+
+        $second = $repo->findOrCreateByUpdate(UpdateFactory::text('hi', [
+            'message' => ['from' => ['language_code' => 'fa']],
+        ]));
+
+        $this->assertSame('fa', $second->language_code);
+        $this->assertSame('fa', $second->fresh()->language_code);
+    }
 }

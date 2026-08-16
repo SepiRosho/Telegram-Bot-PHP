@@ -103,7 +103,10 @@ class BroadcastRunCommand
             }
         }
 
-        $broadcast->status = 'completed';
+        // A broadcast that reached zero recipients did not partially work —
+        // every send failed, so the documented 'failed' status (otherwise
+        // unreachable through this command) belongs here, not 'completed'.
+        $broadcast->status = ($total > 0 && $sent === 0) ? 'failed' : 'completed';
         $broadcast->sent_count = $sent;
         $broadcast->failed_count = $failed;
         $broadcast->completed_at = \Carbon\Carbon::now();

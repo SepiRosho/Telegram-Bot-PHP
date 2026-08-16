@@ -256,6 +256,7 @@ class Router
             'message'             => $update->message !== null,
             'edited_message'      => $update->editedMessage !== null,
             'channel_post'        => $update->channelPost !== null,
+            'edited_channel_post' => $update->editedChannelPost !== null,
             'callback_query'      => $update->callbackQuery !== null
                 && $this->matchesPattern($route->pattern, $update->callbackQuery->data ?? ''),
             'photo'               => $update->message?->photo !== null,
@@ -309,9 +310,27 @@ class Router
             return false;
         }
 
+        // A catch-all onCommand('*') handles every command by definition, so
+        // onUnknownCommand() must never fire alongside one — otherwise it
+        // silently shadows the wildcard regardless of registration order.
+        if ($this->hasWildcardCommandRoute()) {
+            return false;
+        }
+
         $command = $update->message->command();
 
         return $command !== null && !in_array($command, $this->registeredCommandNames(), true);
+    }
+
+    private function hasWildcardCommandRoute(): bool
+    {
+        foreach ($this->routes as $route) {
+            if ($route->type === 'command' && $route->pattern === '*') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function registeredCommandNames(): array

@@ -150,7 +150,13 @@ class TelegramApiException extends \RuntimeException
     /** The bot is in the chat but lacks the rights for this particular action. */
     public function isPermissionDenied(): bool
     {
-        return $this->matches(self::PERMISSION_DENIED);
+        // Telegram also reports missing rights as a bare error constant with
+        // no human-readable wrapper — CHAT_ADMIN_REQUIRED, USER_NOT_MUTUAL_CONTACT,
+        // MESSAGE_EDIT_TIME_EXPIRED (well, that one isn't rights, but the shape
+        // is the same). Matching the *_REQUIRED/*_FORBIDDEN naming convention
+        // catches the whole family instead of enumerating each one by hand.
+        return $this->matches(self::PERMISSION_DENIED)
+            || (bool) preg_match('/[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_(?:REQUIRED|FORBIDDEN)\b/', $this->getMessage());
     }
 
     /** A no-op or too-late request. Safe to swallow entirely. */

@@ -218,6 +218,38 @@ class BroadcastRunCommandTest extends TestCase
         $this->assertSame(1, $this->isActive(100));
     }
 
+    public function test_broadcast_is_marked_failed_when_every_recipient_is_unreachable(): void
+    {
+        // isFailed() is real but was unreachable through this command — it
+        // always wrote 'completed' regardless of how many sends failed.
+        $this->seedTwoRecipients(
+            new TelegramApiException('Forbidden: bot was blocked by the user', 403),
+        );
+        $GLOBALS['__test_http']->throw('sendMessage', new TelegramApiException('Forbidden: bot was blocked by the user', 403));
+
+        ob_start();
+        (new BroadcastRunCommand())->execute([]);
+        ob_get_clean();
+
+        $broadcast = Capsule::table('telegram_broadcasts')->first();
+        $this->assertSame('failed', $broadcast->status);
+        $this->assertSame(0, $broadcast->sent_count);
+    }
+
+    public function test_broadcast_stays_completed_when_at_least_one_recipient_succeeds(): void
+    {
+        $this->seedTwoRecipients(
+            new TelegramApiException('Forbidden: bot was blocked by the user', 403),
+        );
+
+        ob_start();
+        (new BroadcastRunCommand())->execute([]);
+        ob_get_clean();
+
+        $broadcast = Capsule::table('telegram_broadcasts')->first();
+        $this->assertSame('completed', $broadcast->status);
+    }
+
     public function test_notifies_admin_chat_on_completion(): void
     {
         Capsule::table('telegram_users')->insert([

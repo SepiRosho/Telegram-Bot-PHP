@@ -166,6 +166,28 @@ class TelegramApi
         ]));
     }
 
+    /**
+     * Edit a message sent via inline mode (no chat_id/message_id — only
+     * inline_message_id identifies it). Telegram returns a bare `true` for
+     * these instead of a Message object, since the bot never has read access
+     * to the chat the inline result was shared into.
+     */
+    public function editInlineMessageText(string $inlineMessageId, string $text, array $options = []): bool
+    {
+        return (bool) $this->http->post('editMessageText', array_merge([
+            'inline_message_id' => $inlineMessageId,
+            'text' => $text,
+        ], $options));
+    }
+
+    public function editInlineMessageReplyMarkup(string $inlineMessageId, array $replyMarkup): bool
+    {
+        return (bool) $this->http->post('editMessageReplyMarkup', [
+            'inline_message_id' => $inlineMessageId,
+            'reply_markup' => $replyMarkup,
+        ]);
+    }
+
     public function deleteMessage(int|string $chatId, int $messageId): bool
     {
         return (bool) $this->http->post('deleteMessage', [

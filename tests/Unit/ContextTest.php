@@ -97,4 +97,41 @@ class ContextTest extends TestCase
 
         $this->assertSame('en', $ctx->locale());
     }
+
+    // -------------------------------------------------------------------------
+    // Business API / guest message resolution — these routes fire correctly
+    // but used to leave $ctx->message()/text()/from()/chatId() all null-ish
+    // because Context::message() never looked past the ordinary message types.
+    // -------------------------------------------------------------------------
+
+    public static function businessUpdateProvider(): array
+    {
+        return [
+            'business_message'         => ['business_message'],
+            'edited_business_message'  => ['edited_business_message'],
+            'guest_message'            => ['guest_message'],
+        ];
+    }
+
+    /** @dataProvider businessUpdateProvider */
+    public function test_context_resolves_business_api_message_types(string $field): void
+    {
+        $update = Update::fromArray([
+            'update_id' => 1,
+            $field      => [
+                'message_id' => 1,
+                'date'       => 0,
+                'chat'       => ['id' => 555, 'type' => 'private'],
+                'from'       => ['id' => 777, 'is_bot' => false, 'first_name' => 'Biz'],
+                'text'       => 'hello',
+            ],
+        ]);
+
+        $ctx = new Context($update, $this->makeApi());
+
+        $this->assertSame('hello', $ctx->text());
+        $this->assertSame(555, $ctx->chatId());
+        $this->assertSame(777, $ctx->userId());
+        $this->assertNotNull($ctx->from());
+    }
 }

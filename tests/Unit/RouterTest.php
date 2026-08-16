@@ -281,6 +281,44 @@ class RouterTest extends TestCase
         $this->assertTrue($startCalled);
     }
 
+    public function test_unknown_command_does_not_shadow_a_wildcard_command_route(): void
+    {
+        // Registration order shouldn't matter — a catch-all onCommand('*')
+        // means every command is "handled", so onUnknownCommand() must never
+        // fire alongside one, even when it was registered first.
+        $router = new Router();
+        $unknownCalled = false;
+        $wildcardCalled = false;
+        $router->addRoute('unknown_command', '*', function () use (&$unknownCalled) { $unknownCalled = true; });
+        $router->addRoute('command', '*', function () use (&$wildcardCalled) { $wildcardCalled = true; });
+
+        $router->dispatch($this->messageUpdate('/anything'), $this->makeApi());
+
+        $this->assertFalse($unknownCalled);
+        $this->assertTrue($wildcardCalled);
+    }
+
+    public function test_edited_channel_post_route_fires(): void
+    {
+        $router = new Router();
+        $called = false;
+        $router->addRoute('edited_channel_post', '*', function () use (&$called) { $called = true; });
+
+        $update = Update::fromArray([
+            'update_id'           => 1,
+            'edited_channel_post' => [
+                'message_id' => 1,
+                'date'       => 0,
+                'chat'       => ['id' => -100123, 'type' => 'channel'],
+                'text'       => 'edited',
+            ],
+        ]);
+
+        $router->dispatch($update, $this->makeApi());
+
+        $this->assertTrue($called);
+    }
+
     // -------------------------------------------------------------------------
     // Step-route priority
     // -------------------------------------------------------------------------

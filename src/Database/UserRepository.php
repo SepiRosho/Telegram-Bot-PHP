@@ -41,11 +41,12 @@ class UserRepository
 
         $user = $modelClass::firstOrCreate(['telegram_id' => $from->id], $attributes);
 
-        $user->chat_id    = $chatId;
-        $user->first_name = $from->firstName;
-        $user->last_name  = $from->lastName;
-        $user->username   = $from->username;
-        $user->is_active  = true;
+        $user->chat_id       = $chatId;
+        $user->first_name    = $from->firstName;
+        $user->last_name     = $from->lastName;
+        $user->username      = $from->username;
+        $user->language_code = $from->languageCode;
+        $user->is_active     = true;
 
         if ($user->isDirty()) {
             $user->save();

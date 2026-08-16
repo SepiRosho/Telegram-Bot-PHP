@@ -70,6 +70,11 @@ class TelegramErrorClassificationTest extends TestCase
             ['Bad Request: need administrator rights in the channel chat'],
             ['Bad Request: CHAT_WRITE_FORBIDDEN'],
             ['Bad Request: TOPIC_CLOSED'],
+            // Bare Telegram error constants with no human-readable wrapper —
+            // matched generically by the *_REQUIRED/*_FORBIDDEN suffix rather
+            // than enumerated one by one.
+            ['Bad Request: CHAT_ADMIN_REQUIRED'],
+            ['Bad Request: USER_NOT_MUTUAL_CONTACT_REQUIRED'],
         ];
     }
 

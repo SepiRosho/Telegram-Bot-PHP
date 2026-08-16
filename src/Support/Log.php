@@ -28,8 +28,8 @@ class Log
             return;
         }
 
-        $trace  = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $_depth + 1);
-        $caller = $trace[$_depth] ?? $trace[0];
+        $trace  = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $_depth);
+        $caller = $trace[$_depth - 1] ?? $trace[0] ?? [];
         $file   = basename($caller['file'] ?? 'unknown');
         $line   = $caller['line'] ?? 0;
 

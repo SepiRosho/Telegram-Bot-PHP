@@ -78,6 +78,7 @@ class FakeHttpClient implements HttpClientInterface
             'sendMediaGroup' => [$this->fakeMessage($params)],
             'getChatMember' => ['status' => 'member', 'user' => ['id' => $params['user_id'] ?? 0, 'is_bot' => false, 'first_name' => 'Test']],
             'getChat' => ['id' => $params['chat_id'] ?? 0, 'type' => 'private'],
+            'getWebhookInfo' => ['url' => '', 'has_custom_certificate' => false, 'pending_update_count' => 0],
             default => true,
         };
     }
