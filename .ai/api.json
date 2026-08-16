@@ -1,7 +1,7 @@
 {
     "library": "devflow/telegram-bot",
-    "version": "1.12.1",
-    "generated_at": "2026-08-15T18:14:53+00:00",
+    "version": "1.13.1",
+    "generated_at": "2026-08-16T08:05:44+00:00",
     "generator": "vendor/bin/devflow ai:manifest",
     "rules": [
         "Every $options array (including reply_markup) must be a PHP array. Never call json_encode() yourself — HttpClient encodes it, and pre-encoding produces a double-encoded value Telegram silently ignores.",
@@ -160,6 +160,12 @@
             "on_facade": false
         },
         {
+            "method": "onEditedChannelPost",
+            "router_type": "edited_channel_post",
+            "signature": "onEditedChannelPost(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
             "method": "onEditedMessage",
             "router_type": "edited_message",
             "signature": "onEditedMessage(callable|string $handler, array $middleware = []): static",
@@ -313,11 +319,11 @@
         },
         {
             "name": "editReply",
-            "signature": "editReply(string $text, array $options = []): Message"
+            "signature": "editReply(string $text, array $options = []): Message|bool"
         },
         {
             "name": "editReplySafe",
-            "signature": "editReplySafe(string $text, array $options = []): ?Message"
+            "signature": "editReplySafe(string $text, array $options = []): Message|bool|null"
         },
         {
             "name": "from",
@@ -588,6 +594,10 @@
         {
             "name": "onDocument",
             "signature": "onDocument(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onEditedChannelPost",
+            "signature": "onEditedChannelPost(callable|string $handler, array $middleware = []): BotInstance"
         },
         {
             "name": "onEditedMessage",
@@ -930,6 +940,14 @@
         {
             "name": "editGeneralForumTopic",
             "signature": "editGeneralForumTopic(string|int $chatId, string $name): bool"
+        },
+        {
+            "name": "editInlineMessageReplyMarkup",
+            "signature": "editInlineMessageReplyMarkup(string $inlineMessageId, array $replyMarkup): bool"
+        },
+        {
+            "name": "editInlineMessageText",
+            "signature": "editInlineMessageText(string $inlineMessageId, string $text, array $options = []): bool"
         },
         {
             "name": "editMessageCaption",
