@@ -77,6 +77,7 @@ vendor/bin/devflow make:callback ConfirmCallback    # -> app/Callbacks/ConfirmCa
 vendor/bin/devflow make:middleware MyMiddleware     # -> app/Middleware/MyMiddleware.php
 vendor/bin/devflow make:flow     RegistrationFlow   # -> app/Flows/RegistrationFlow.php
 vendor/bin/devflow make:text     WelcomeText        # -> app/Texts/WelcomeText.php
+vendor/bin/devflow make:service  PaymentService     # -> app/Services/PaymentService.php
 vendor/bin/devflow make:migration create_orders_table  # -> database/migrations/<timestamp>_create_orders_table.php
 ```
 

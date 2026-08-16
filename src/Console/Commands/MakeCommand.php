@@ -68,7 +68,7 @@ abstract class MakeCommand
     {
         $cwd = getcwd();
         return str_starts_with($absolute, $cwd)
-            ? ltrim(str_replace($cwd, '', $absolute), DIRECTORY_SEPARATOR)
+            ? ltrim(str_replace($cwd, '', $absolute), '/\\')
             : $absolute;
     }
 }
