@@ -17,14 +17,26 @@ namespace Devflow\TelegramBot\Console\Commands;
  */
 class MakeMigrationCommand
 {
+    private const MODEL_FLAGS = ['--model'];
+
     public function execute(array $args): void
     {
         $name = $args[0] ?? null;
 
         if (!$name) {
-            $this->error('Usage: vendor/bin/devflow make:migration <snake_case_name>');
-            $this->line('  e.g. vendor/bin/devflow make:migration create_orders_table');
+            $this->error('Usage: vendor/bin/devflow make:migration <snake_case_name> [--model]');
+            $this->line('  e.g. vendor/bin/devflow make:migration create_orders_table --model');
             exit(1);
+        }
+
+        $createModel = (bool) array_intersect($args, self::MODEL_FLAGS);
+
+        foreach (array_slice($args, 1) as $arg) {
+            if (str_starts_with($arg, '-') && !in_array($arg, self::MODEL_FLAGS, true)) {
+                $this->error("Unknown option: {$arg}");
+                $this->line('  Usage: vendor/bin/devflow make:migration <snake_case_name> [--model]');
+                exit(1);
+            }
         }
 
         if (!$this->isValidName($name)) {
@@ -50,11 +62,36 @@ class MakeMigrationCommand
 
         $filename = date('Y_m_d_His') . '_' . $name . '.php';
         $path     = $dir . DIRECTORY_SEPARATOR . $filename;
+        $table    = $this->guessTable($name);
 
         file_put_contents($path, $this->stub($name));
 
         $this->success("Migration created: database/migrations/{$filename}");
         $this->line('Run it with: vendor/bin/devflow migrate');
+
+        if ($createModel) {
+            $this->maybeCreateModel($name, $table);
+        }
+    }
+
+    /**
+     * Best-effort: the migration above already succeeded, so a problem here
+     * (bad migration shape, model already exists, ...) is reported without
+     * exit(1) — that would make a successful `make:migration` look failed.
+     */
+    private function maybeCreateModel(string $name, ?string $table): void
+    {
+        if ($table === null || !str_starts_with($name, 'create_')) {
+            $this->line('  (--model skipped: only applies to a create_<table>_table migration)');
+            return;
+        }
+
+        $modelClass = \Illuminate\Support\Str::studly(\Illuminate\Support\Str::singular($table));
+        $result     = (new MakeModelCommand())->generate($modelClass);
+
+        if ($result !== true) {
+            $this->line("  (model not created: {$result})");
+        }
     }
 
     private function isValidName(string $name): bool

@@ -63,6 +63,7 @@ class NewProjectCommand
             'app/Handlers',
             'app/Models',
             'app/Services',
+            'app/Keyboards',
             'bootstrap',
             'database/migrations',
             'lang',
@@ -95,6 +96,7 @@ class NewProjectCommand
             'app/Handlers/UserHandlers.php'             => $this->userHandlers(),
             'app/Handlers/AdminHandlers.php'            => $this->adminHandlers(),
             'app/Models/User.php'                       => $this->userModel(),
+            'app/Emojis.php'                             => $this->emojisFile(),
             'lang/en.php'                                => $this->langEn(),
             'lang/fa.php'                                => $this->langFa(),
             // Coding agents read AGENTS.md (Cursor, Codex) or CLAUDE.md
@@ -107,6 +109,7 @@ class NewProjectCommand
             'app/Callbacks/.gitkeep'                    => '',
             'app/Flows/.gitkeep'                        => '',
             'app/Services/.gitkeep'                     => '',
+            'app/Keyboards/.gitkeep'                    => '',
             // database/migrations/ starts empty — the base tables
             // (telegram_users, bot_settings, telegram_broadcasts) ship as
             // migrations bundled with the package itself; `devflow migrate`
@@ -163,6 +166,12 @@ class NewProjectCommand
         # fixed code (e.g. fa, en) to ignore that and lock every user to one
         # language instead — for bots that don't offer multi-language support.
         LANGUAGE_CODE=auto
+
+        # When a translation key is missing from both the user's locale and
+        # default_locale, search every other lang/ file before giving up.
+        # A wrong-language string beats a raw untranslated key. Logs a WARNING
+        # to logs/ (never crashes) whenever this actually kicks in.
+        LANG_AUTO_FALLBACK=false
 
         # Optional: set a secret token when registering your webhook (recommended for production).
         # Pass this same value to setWebhook as the secret_token option.
@@ -237,6 +246,7 @@ class NewProjectCommand
         <?php
 
         use Devflow\TelegramBot\Bot;
+        use Devflow\TelegramBot\Support\Emoji;
         use Devflow\TelegramBot\Support\Log;
         use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -245,6 +255,11 @@ class NewProjectCommand
         // botLog() sends to ADMIN_CHAT_ID; saveLog() writes to logs/YYYY-MM-DD.log.
         Log::setPath(__DIR__ . '/../logs');
         Log::setAdminChatId((int) env('ADMIN_CHAT_ID'));
+
+        // ─── Premium emoji ─────────────────────────────────────────────────────
+        // Define named premium emoji in app/Emojis.php, then use them anywhere
+        // you build message text: Emoji::text('Nice :fire: work!'). See docs/16-premium-emoji.md.
+        Emoji::registerMany(require __DIR__ . '/../app/Emojis.php');
 
         // ─── Database ──────────────────────────────────────────────────────────
         // Required for auto-registration, $ctx->user(), banning, rate limiting.
@@ -286,6 +301,10 @@ class NewProjectCommand
         // client language. Set LANGUAGE_CODE in .env to a fixed code to lock
         // every user to it instead — see docs/12-i18n.md.
         //
+        // lang_auto_fallback: when a $ctx->t() key is missing from both the
+        // user's locale and default_locale, search every other lang/ file
+        // instead of showing the raw key. Set LANG_AUTO_FALLBACK=true in .env.
+        //
         // user_defaults: promotes ADMIN_CHAT_ID to 'superadmin' the moment
         // they're first seen. Runs once per telegram_id, on creation only.
         Bot::init(env('BOT_TOKEN'), [
@@ -295,6 +314,7 @@ class NewProjectCommand
             'lang_path'          => __DIR__ . '/../lang',
             'default_locale'     => 'en',
             'language_code'      => env('LANGUAGE_CODE', 'auto'),
+            'lang_auto_fallback' => filter_var(env('LANG_AUTO_FALLBACK', false), FILTER_VALIDATE_BOOLEAN),
             'allowed_chat_types' => ['private'],
             // Point at your own model (see app/Models/User.php) to add
             // columns/relationships/scopes on top of the base TelegramUser.
@@ -618,6 +638,27 @@ class NewProjectCommand
         class User extends TelegramUser
         {
         }
+        PHP;
+    }
+
+    private function emojisFile(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        // Premium (custom) emoji, registered by name so you can write ":fire:"
+        // in message text instead of the raw <tg-emoji>/tg://emoji markup Telegram
+        // needs to show one with a fallback glyph for clients that can't render it.
+        // Grab the emoji-id by forwarding a message containing it to @userinfobot,
+        // or from getCustomEmojiStickers in the Bot API.
+        //
+        // Loaded once in bootstrap/app.php via Emoji::registerMany(). See docs/16-premium-emoji.md.
+        //
+        // return [
+        //     'fire' => ['id' => '5368324170671202286', 'fallback' => '🔥'],
+        // ];
+
+        return [];
         PHP;
     }
 

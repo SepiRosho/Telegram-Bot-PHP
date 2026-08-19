@@ -61,6 +61,7 @@ class BotInstance
         if (!empty($config['default_locale'])) {
             Lang::setDefaultLocale($config['default_locale']);
         }
+        Lang::setAutoFallback((bool) ($config['lang_auto_fallback'] ?? false));
     }
 
     public function api(): TelegramApi

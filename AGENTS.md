@@ -75,6 +75,7 @@ app/Middleware/          MiddlewareInterface implementations
 app/Flows/               Multi-step wizards
 app/Models/User.php      Extends TelegramUser; wired via 'user_model'
 app/Services/            Your own business logic
+app/Keyboards/           Reusable KeyboardInterface classes — see §8
 database/migrations/     devflow make:migration writes here
 lang/{locale}.php        i18n key files
 logs/                    Daily log files
@@ -93,7 +94,8 @@ logs/                    Daily log files
 | `proxy` | ?string | `null` | `http://…` or `socks5://host:1080`. |
 | `lang_path` | ?string | `null` | Directory of `{locale}.php` files. |
 | `default_locale` | string | `'en'` | Fallback locale. |
-| `language_code` | string | `'auto'` | `'auto'` records each user's own Telegram language. Any other value (e.g. `'fa'`) forces every user's `language_code` *and* `language` columns to it, overriding what Telegram reports. See §12. |
+| `language_code` | string | `'auto'` | `'auto'` records each user's own Telegram language. Any other value (e.g. `'fa'`) forces every user's `language_code` *and* `language` columns to it, overriding what Telegram reports. See §11. |
+| `lang_auto_fallback` | bool | `false` | When a `$ctx->t()` key is missing from both the resolved locale and `default_locale`, search every other lang file before falling back to the raw key. Logs a `WARNING` (never throws) when it actually fires. See §11. |
 | `user_model` | class-string | `TelegramUser::class` | Your Eloquent subclass. |
 | `user_defaults` | ?callable | `null` | `callable(Update): array`, merged in on first insert. |
 | `debug` | bool | `false` | Logs every route match/no-match, including chat-filter drops. |
@@ -103,12 +105,12 @@ logs/                    Daily log files
 | `max_retry_after` | int | `60` | Longest `retry_after` (seconds) worth waiting on. |
 | `timeout` | int | `30` | HTTP timeout, seconds. |
 
-Env vars in a scaffolded `.env`: `BOT_TOKEN`, `ADMIN_CHAT_ID`, `LANGUAGE_CODE`, `WEBHOOK_SECRET`,
-`PROXY_URL`, `BROADCAST_RATE`, `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`,
-`DB_PASSWORD`. `lang_path` and `default_locale` are **not** env vars — they're hardcoded in
-`bootstrap/app.php`. `ADMIN_CHAT_ID` is not read directly by the library either — the scaffolded
-`bootstrap/app.php` wires it into `user_defaults` to promote that Telegram user id to `'superadmin'`
-on first contact.
+Env vars in a scaffolded `.env`: `BOT_TOKEN`, `ADMIN_CHAT_ID`, `LANGUAGE_CODE`, `LANG_AUTO_FALLBACK`,
+`WEBHOOK_SECRET`, `PROXY_URL`, `BROADCAST_RATE`, `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`,
+`DB_USERNAME`, `DB_PASSWORD`. `lang_path` and `default_locale` are **not** env vars — they're
+hardcoded in `bootstrap/app.php`. `ADMIN_CHAT_ID` is not read directly by the library either — the
+scaffolded `bootstrap/app.php` wires it into `user_defaults` to promote that Telegram user id to
+`'superadmin'` on first contact.
 
 ---
 
@@ -265,6 +267,39 @@ match ($key) {
 };
 ```
 
+### Reusable keyboards
+
+A keyboard that appears in several handlers (a main menu, an admin panel) belongs in its own
+`KeyboardInterface` class instead of being rebuilt at every call site — `devflow make:keyboard
+<Name>` scaffolds `app/Keyboards/<Name>.php`. `build()` is static and takes a `$vars` array so the
+caller can vary it (e.g. an admin-only button) without the class knowing about `Context`:
+
+```php
+namespace App\Keyboards;
+
+use Devflow\TelegramBot\Keyboards\KeyboardInterface;
+use Devflow\TelegramBot\Support\Keyboard;
+
+class MainMenuKeyboard implements KeyboardInterface
+{
+    public static function build(array $vars = []): array
+    {
+        $rows = [[Keyboard::button('📊 Stats', 'menu_stats')]];
+
+        if ($vars['isAdmin'] ?? false) {
+            $rows[] = [Keyboard::button('⚙️ Admin', 'menu_admin')];
+        }
+
+        return Keyboard::inline($rows);
+    }
+}
+
+// anywhere in a handler:
+$ctx->reply('Main menu:', [
+    'reply_markup' => \App\Keyboards\MainMenuKeyboard::build(['isAdmin' => $ctx->user()?->isAdmin()]),
+]);
+```
+
 ---
 
 ## 9. Flows (wizards)
@@ -338,6 +373,11 @@ return [
 Locale resolves: stored `language` column → Telegram client language → `default_locale`.
 BCP-47 subtags fall back (`fa-IR` → `fa`, `zh-Hans-CN` → `zh-hans` → `zh`).
 
+A key missing from both the resolved locale and `default_locale` renders as the raw key — unless
+`lang_auto_fallback` is `true`, in which case every other shipped lang file is searched first (and a
+`WARNING` logged when that fires). `language_code` config (`'auto'` by default) can also force every
+user onto one fixed language, ignoring what Telegram reports — see the config table in §4.
+
 ---
 
 ## 12. Middleware
@@ -409,7 +449,10 @@ vendor/bin/devflow make:middleware <Name>  # → app/Middleware/
 vendor/bin/devflow make:flow <Name>        # → app/Flows/
 vendor/bin/devflow make:text <Name>        # → app/Texts/
 vendor/bin/devflow make:service <Name>     # → app/Services/
+vendor/bin/devflow make:keyboard <Name>    # → app/Keyboards/, implements KeyboardInterface
+vendor/bin/devflow make:model <Name>       # → app/Models/, plain Eloquent model
 vendor/bin/devflow make:migration <name>   # → database/migrations/ (snake_case)
+vendor/bin/devflow make:migration create_orders_table --model  # …plus app/Models/Order.php
 vendor/bin/devflow ai:manifest             # regenerate .ai/api.json
 ```
 
@@ -472,7 +515,7 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
 
 ---
 
-## 16. Error handling
+## 17. Error handling
 
 `TelegramApiException` carries `telegramErrorCode()`, `parameters()`, `retryAfter()`,
 `migrateToChatId()`. 429s are retried automatically within `max_retries`/`max_retry_after`; if one
@@ -527,7 +570,32 @@ crash; failures go to `logs/` and to `ADMIN_CHAT_ID` via `botLog()`.
 
 ---
 
-## 17. Contributing to this library
+## 18. Premium Emoji
+
+`Devflow\TelegramBot\Support\Emoji` replaces raw `<tg-emoji emoji-id="...">🔥</tg-emoji>` /
+`![🔥](tg://emoji?id=...)` markup with a `:name:` shortcode. Register once (a scaffolded project
+does this in `bootstrap/app.php` from `app/Emojis.php`):
+
+```php
+Emoji::register('fire', '5368324170671202286', '🔥');
+// or: Emoji::registerMany(require __DIR__ . '/../app/Emojis.php');
+```
+
+Then anywhere you build message text:
+
+```php
+$ctx->reply(Emoji::text('Nice :fire: work!'), ['parse_mode' => 'HTML']);
+```
+
+`Emoji::get('fire')` returns markup for a single name. Second argument to either is `'HTML'`
+(default) or `'MarkdownV2'` — those are the only two Telegram parse modes with custom-emoji syntax;
+passing legacy `'Markdown'` throws `InvalidArgumentException` instead of sending broken markup. An
+unregistered `:name:` (or an incidental colon-wrapped substring like a timestamp) is left untouched,
+never warned about.
+
+---
+
+## 19. Contributing to this library
 
 - Tests: `php vendor/bin/phpunit` (all must pass).
 - Nothing under `src/` may reference PHPUnit unguarded — `ProductionDependencyTest` enforces it.

@@ -8,8 +8,10 @@ use Devflow\TelegramBot\Console\Commands\DoctorCommand;
 use Devflow\TelegramBot\Console\Commands\MakeCallbackCommand;
 use Devflow\TelegramBot\Console\Commands\MakeFlowCommand;
 use Devflow\TelegramBot\Console\Commands\MakeHandlerCommand;
+use Devflow\TelegramBot\Console\Commands\MakeKeyboardCommand;
 use Devflow\TelegramBot\Console\Commands\MakeMiddlewareCommand;
 use Devflow\TelegramBot\Console\Commands\MakeMigrationCommand;
+use Devflow\TelegramBot\Console\Commands\MakeModelCommand;
 use Devflow\TelegramBot\Console\Commands\MakeServiceCommand;
 use Devflow\TelegramBot\Console\Commands\MakeTextCommand;
 use Devflow\TelegramBot\Console\Commands\MigrateCommand;
@@ -21,7 +23,7 @@ use Devflow\TelegramBot\Console\Commands\WebhookCommand;
 
 class Application
 {
-    private const VERSION = '1.14.1';
+    private const VERSION = '1.15.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
@@ -40,6 +42,8 @@ class Application
         'make:flow'         => MakeFlowCommand::class,
         'make:text'         => MakeTextCommand::class,
         'make:service'      => MakeServiceCommand::class,
+        'make:keyboard'     => MakeKeyboardCommand::class,
+        'make:model'        => MakeModelCommand::class,
         'make:migration'    => MakeMigrationCommand::class,
         'ai:manifest'       => AiManifestCommand::class,
     ];
@@ -110,7 +114,10 @@ class Application
     \033[32mmake:flow\033[0m <ClassName>         Generate a wizard flow       (app/Flows/)
     \033[32mmake:text\033[0m <ClassName>         Generate a localized text class (app/Texts/)
     \033[32mmake:service\033[0m <ClassName>      Generate a service class     (app/Services/)
-    \033[32mmake:migration\033[0m <name>         Generate a migration        (database/migrations/)
+    \033[32mmake:keyboard\033[0m <ClassName>     Generate a reusable keyboard (app/Keyboards/)
+    \033[32mmake:model\033[0m <ClassName>        Generate an Eloquent model   (app/Models/)
+    \033[32mmake:migration\033[0m <name> [--model]  Generate a migration     (database/migrations/)
+      \033[32m--model\033[0m                     …and a matching model for a create_*_table migration
 
   \033[33mAI tooling:\033[0m
     \033[32mai:manifest\033[0m                   Regenerate .ai/api.json — a machine-readable index
@@ -129,7 +136,10 @@ class Application
     vendor/bin/devflow make:middleware RateLimitMiddleware
     vendor/bin/devflow make:flow RegistrationFlow
     vendor/bin/devflow make:service NotificationService
+    vendor/bin/devflow make:keyboard MainMenuKeyboard
+    vendor/bin/devflow make:model Order
     vendor/bin/devflow make:migration create_orders_table
+    vendor/bin/devflow make:migration create_orders_table --model
 
 HELP;
     }

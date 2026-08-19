@@ -78,7 +78,10 @@ vendor/bin/devflow make:middleware MyMiddleware     # -> app/Middleware/MyMiddle
 vendor/bin/devflow make:flow     RegistrationFlow   # -> app/Flows/RegistrationFlow.php
 vendor/bin/devflow make:text     WelcomeText        # -> app/Texts/WelcomeText.php
 vendor/bin/devflow make:service  PaymentService     # -> app/Services/PaymentService.php
+vendor/bin/devflow make:keyboard MainMenuKeyboard   # -> app/Keyboards/MainMenuKeyboard.php
+vendor/bin/devflow make:model    Order              # -> app/Models/Order.php
 vendor/bin/devflow make:migration create_orders_table  # -> database/migrations/<timestamp>_create_orders_table.php
+vendor/bin/devflow make:migration create_orders_table --model  # …plus app/Models/Order.php
 ```
 
 **Windows:**

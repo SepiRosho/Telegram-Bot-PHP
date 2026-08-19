@@ -1,0 +1,14 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Illuminate\Database\Eloquent\Model;
+
+class {{ ClassName }} extends Model
+{
+    // Eloquent guesses the table as the snake_case, pluralized class name
+    // ({{ TableGuess }}). Uncomment and edit if that guess is wrong:
+    // protected $table = '{{ TableGuess }}';
+
+    protected $fillable = [];
+}

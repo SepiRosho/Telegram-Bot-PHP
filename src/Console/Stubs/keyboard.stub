@@ -1,0 +1,26 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Devflow\TelegramBot\Keyboards\KeyboardInterface;
+use Devflow\TelegramBot\Support\Keyboard;
+
+class {{ ClassName }} implements KeyboardInterface
+{
+    /**
+     * @param array $vars Whatever the call site passes in, e.g.
+     *                     ['isAdmin' => $ctx->user()?->isAdmin()].
+     */
+    public static function build(array $vars = []): array
+    {
+        $rows = [
+            // [Keyboard::button('Label', 'callback_data')],
+        ];
+
+        // if ($vars['isAdmin'] ?? false) {
+        //     $rows[] = [Keyboard::button('⚙️ Admin', 'admin_panel')];
+        // }
+
+        return Keyboard::inline($rows);
+    }
+}

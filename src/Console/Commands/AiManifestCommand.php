@@ -122,6 +122,8 @@ class AiManifestCommand
             'proxy'                => ['type' => '?string', 'default' => null, 'description' => 'HTTP or SOCKS5 proxy URL, e.g. socks5://host:1080.'],
             'lang_path'            => ['type' => '?string', 'default' => null, 'description' => 'Directory of per-locale {locale}.php files for Support\\Lang.'],
             'default_locale'       => ['type' => 'string', 'default' => 'en', 'description' => 'Fallback locale when no user preference or client language resolves.'],
+            'lang_auto_fallback'   => ['type' => 'bool', 'default' => false, 'description' => 'When a $ctx->t() key is missing from both the resolved locale and default_locale, search every other lang file before falling back to the raw key. Logs a WARNING when it fires.'],
+            'language_code'        => ['type' => 'string', 'default' => 'auto', 'description' => "'auto' records each user's own Telegram language. Any other value forces every user's language_code and language columns to it."],
             'user_model'           => ['type' => 'class-string', 'default' => 'Devflow\\TelegramBot\\Database\\Models\\TelegramUser', 'description' => 'Custom Eloquent model for UserRepository.'],
             'user_defaults'        => ['type' => '?callable', 'default' => null, 'description' => 'callable(Update): array — extra attributes merged in when a user row is first created.'],
             'debug'                => ['type' => 'bool', 'default' => false, 'description' => 'Logs route match/no-match decisions on every dispatch, including chat-type filter drops.'],
@@ -285,7 +287,9 @@ class AiManifestCommand
             'make:flow <Name>'      => 'Generate app/Flows/<Name>.php',
             'make:text <Name>'      => 'Generate app/Texts/<Name>.php',
             'make:service <Name>'   => 'Generate app/Services/<Name>.php',
-            'make:migration <name>' => 'Generate a timestamped migration in database/migrations/',
+            'make:keyboard <Name>'  => 'Generate app/Keyboards/<Name>.php (implements KeyboardInterface)',
+            'make:model <Name>'     => 'Generate app/Models/<Name>.php (plain Eloquent model)',
+            'make:migration <name>' => 'Generate a timestamped migration in database/migrations/ (--model also scaffolds the matching model)',
             'ai:manifest'           => 'Regenerate .ai/api.json',
         ];
     }

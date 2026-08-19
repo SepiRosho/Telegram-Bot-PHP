@@ -26,7 +26,11 @@ class MakeMigrationCommandTest extends TestCase
         foreach (glob($migrations . '/*.php') ?: [] as $file) {
             unlink($file);
         }
-        foreach ([$migrations, $this->dir . '/database', $this->dir] as $dir) {
+        $models = $this->dir . '/app/Models';
+        foreach (glob($models . '/*.php') ?: [] as $file) {
+            unlink($file);
+        }
+        foreach ([$migrations, $this->dir . '/database', $models, $this->dir . '/app', $this->dir] as $dir) {
             if (is_dir($dir)) {
                 rmdir($dir);
             }
@@ -35,8 +39,13 @@ class MakeMigrationCommandTest extends TestCase
 
     private function make(string $name): string
     {
+        return $this->makeArgs([$name]);
+    }
+
+    private function makeArgs(array $args): string
+    {
         ob_start();
-        (new MakeMigrationCommand())->execute([$name]);
+        (new MakeMigrationCommand())->execute($args);
 
         return (string) ob_get_clean();
     }
@@ -156,4 +165,41 @@ class MakeMigrationCommandTest extends TestCase
             ['backfill_legacy_data', null],
         ];
     }
+
+    // -------------------------------------------------------------------------
+    // --model flag
+    // -------------------------------------------------------------------------
+
+    public function test_model_flag_generates_a_matching_model_for_a_create_migration(): void
+    {
+        $this->makeArgs(['create_orders_table', '--model']);
+
+        $file = $this->dir . '/app/Models/Order.php';
+        $this->assertFileExists($file);
+        $this->assertStringContainsString('class Order extends Model', (string) file_get_contents($file));
+    }
+
+    public function test_model_flag_singularizes_a_multi_word_table_name(): void
+    {
+        $this->makeArgs(['create_order_items_table', '--model']);
+
+        $this->assertFileExists($this->dir . '/app/Models/OrderItem.php');
+    }
+
+    public function test_without_the_model_flag_no_model_is_created(): void
+    {
+        $this->makeArgs(['create_orders_table']);
+
+        $this->assertFileDoesNotExist($this->dir . '/app/Models/Order.php');
+    }
+
+    public function test_model_flag_on_a_non_create_migration_is_a_non_fatal_no_op(): void
+    {
+        $output = $this->makeArgs(['add_phone_to_telegram_users_table', '--model']);
+
+        // The migration itself must still succeed -- --model is best-effort.
+        $this->assertCount(1, $this->generatedFiles());
+        $this->assertStringContainsString('--model skipped', $output);
+    }
+
 }

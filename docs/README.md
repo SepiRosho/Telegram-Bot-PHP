@@ -14,11 +14,12 @@ Step-by-step guides for building a bot with this library.
 | [08 — Local Dev](08-local-dev.md) | ngrok and Cloudflare Tunnel for testing on localhost; `Bot::fake()` for testing handlers without a token, webhook, or database |
 | [09 — Localized Texts](09-texts.md) | `BotText` classes for multi-language messages with `{variable}` placeholders (legacy — see 12) |
 | [10 — Handler Groups](10-handler-groups.md) | Split large bots across multiple handler files |
-| [11 — Keyboards](11-keyboards.md) | `Keyboard::inline()`, `Keyboard::reply()`, `Keyboard::button()`, `Keyboard::url()`, `Keyboard::remove()`, `Keyboard::paginate()` |
+| [11 — Keyboards](11-keyboards.md) | `Keyboard::inline()`, `Keyboard::reply()`, `Keyboard::button()`, `Keyboard::url()`, `Keyboard::remove()`, `Keyboard::paginate()`, reusable `KeyboardInterface` classes via `make:keyboard` |
 | [12 — i18n](12-i18n.md) | `Support\Lang` + `$ctx->t()` — key-based translations with per-user locale, the recommended i18n approach |
 | [13 — Chat Types](13-chat-types.md) | Restricting a bot to private chats, why it matters, and letting specific routes into groups |
 | [14 — Files & Limits](14-files-and-limits.md) | Uploading local files with `InputFile`; automatic 429 / `retry_after` handling |
 | [15 — Errors & Reliability](15-errors.md) | Telling "user blocked the bot" apart from a real bug; polling backoff; `poll --drop-pending` |
+| [16 — Premium Emoji](16-premium-emoji.md) | `Support\Emoji` — register premium emoji by name, use `:shortcode:` syntax instead of raw `<tg-emoji>`/`tg://emoji` markup |
 
 Start with [01 — Installation](01-installation.md) if this is your first time.
 

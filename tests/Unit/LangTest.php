@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot\Tests\Unit;
 
 use Devflow\TelegramBot\Support\Lang;
+use Devflow\TelegramBot\Support\Log;
 use PHPUnit\Framework\TestCase;
 
 class LangTest extends TestCase
@@ -11,6 +12,7 @@ class LangTest extends TestCase
 
     protected function setUp(): void
     {
+        Lang::setAutoFallback(false);
         $this->dir = sys_get_temp_dir() . '/devflow_lang_test_' . uniqid();
         mkdir($this->dir);
 
@@ -128,5 +130,70 @@ class LangTest extends TestCase
     public function test_find_key_matches_a_region_tagged_locale(): void
     {
         $this->assertSame('menu.account', Lang::findKey('حساب من', ['fa-IR']));
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-fallback across every shipped lang file
+    // -------------------------------------------------------------------------
+
+    public function test_auto_fallback_off_by_default_returns_the_raw_key(): void
+    {
+        file_put_contents($this->dir . '/de.php', "<?php\nreturn ['only_in_de' => 'Nur auf Deutsch'];\n");
+        Lang::setPath($this->dir);
+
+        $this->assertSame('only_in_de', Lang::get('en', 'only_in_de'));
+
+        @unlink($this->dir . '/de.php');
+    }
+
+    public function test_auto_fallback_finds_the_key_in_another_lang_file(): void
+    {
+        file_put_contents($this->dir . '/de.php', "<?php\nreturn ['only_in_de' => 'Nur auf Deutsch'];\n");
+        Lang::setPath($this->dir);
+        Lang::setAutoFallback(true);
+
+        $this->assertSame('Nur auf Deutsch', Lang::get('en', 'only_in_de'));
+
+        @unlink($this->dir . '/de.php');
+    }
+
+    public function test_auto_fallback_still_prefers_the_requested_locale_and_default_locale(): void
+    {
+        Lang::setAutoFallback(true);
+
+        $this->assertSame('Hello, Ali!', Lang::get('en', 'welcome', ['name' => 'Ali']));
+        $this->assertSame('سلام، Ali!', Lang::get('fa', 'welcome', ['name' => 'Ali']));
+    }
+
+    public function test_auto_fallback_still_returns_the_raw_key_when_nothing_has_it(): void
+    {
+        Lang::setAutoFallback(true);
+
+        $this->assertSame('missing.everywhere', Lang::get('en', 'missing.everywhere'));
+    }
+
+    public function test_auto_fallback_logs_a_warning_when_it_fires(): void
+    {
+        $logDir = sys_get_temp_dir() . '/devflow_lang_log_' . uniqid();
+        mkdir($logDir);
+        Log::setPath($logDir);
+
+        file_put_contents($this->dir . '/de.php', "<?php\nreturn ['only_in_de' => 'Nur auf Deutsch'];\n");
+        Lang::setPath($this->dir);
+        Lang::setAutoFallback(true);
+
+        Lang::get('en', 'only_in_de');
+
+        $logFile = $logDir . '/' . date('Y-m-d') . '.log';
+        $this->assertFileExists($logFile);
+        $contents = (string) file_get_contents($logFile);
+        $this->assertStringContainsString('[WARNING]', $contents);
+        $this->assertStringContainsString('only_in_de', $contents);
+        $this->assertStringContainsString('de', $contents);
+
+        @unlink($this->dir . '/de.php');
+        @unlink($logFile);
+        @rmdir($logDir);
+        Log::setPath('');
     }
 }

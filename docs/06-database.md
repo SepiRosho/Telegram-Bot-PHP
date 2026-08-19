@@ -73,6 +73,27 @@ return new class {
 
 Then run `vendor/bin/devflow migrate` again.
 
+### Generating a new table (and its model)
+
+For a table of your own rather than a change to `telegram_users`, `make:migration` writes the file
+above for you when the name matches `create_<table>_table`:
+
+```bash
+vendor/bin/devflow make:migration create_orders_table
+```
+
+Add `--model` to also scaffold a plain Eloquent model for that table in the same step:
+
+```bash
+vendor/bin/devflow make:migration create_orders_table --model   # -> app/Models/Order.php too
+```
+
+The model class name is derived from the table name (`orders` → `Order`, `order_items` →
+`OrderItem`). You can also generate a model on its own with `vendor/bin/devflow make:model <Name>`
+— it extends plain `Illuminate\Database\Eloquent\Model` (not `TelegramUser`; see below for that) and
+ships with a commented-out `protected $table = '...'` line naming Eloquent's auto-detected guess, in
+case your actual table name doesn't match it.
+
 ### Legacy: importing the raw SQL by hand
 
 If you'd rather not use the migration runner, the equivalent `.sql` files still ship under `vendor/devflow/telegram-bot/database/migrations/*.sql` and can be imported directly (phpMyAdmin's Import tab, or `mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/telegram_users.sql`). Note this path won't track schema changes across library upgrades the way `devflow migrate` does.

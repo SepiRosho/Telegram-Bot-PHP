@@ -112,6 +112,58 @@ Bot::onCallbackQuery('banned_noop', function (Context $ctx) {
 
 ---
 
+## Reusable keyboards (providers)
+
+A keyboard that shows up in several handlers — a main menu, an admin panel — is easy to let drift:
+reorder a button in one place and you have to remember every other handler that renders the same
+rows. Put it in one class instead:
+
+```bash
+vendor/bin/devflow make:keyboard MainMenuKeyboard   # -> app/Keyboards/MainMenuKeyboard.php
+```
+
+```php
+namespace App\Keyboards;
+
+use Devflow\TelegramBot\Keyboards\KeyboardInterface;
+use Devflow\TelegramBot\Support\Keyboard;
+
+class MainMenuKeyboard implements KeyboardInterface
+{
+    public static function build(array $vars = []): array
+    {
+        $rows = [
+            [Keyboard::button('📊 Stats', 'menu_stats')],
+        ];
+
+        // $vars carries whatever the call site knows — the class itself
+        // never touches Context, so it stays trivial to unit test.
+        if ($vars['isAdmin'] ?? false) {
+            $rows[] = [Keyboard::button('⚙️ Admin', 'menu_admin')];
+        }
+
+        return Keyboard::inline($rows);
+    }
+}
+```
+
+Use it anywhere, passing whatever varies the output:
+
+```php
+use App\Keyboards\MainMenuKeyboard;
+
+Bot::onCommand('menu', function (Context $ctx) {
+    $ctx->reply('Main menu:', [
+        'reply_markup' => MainMenuKeyboard::build(['isAdmin' => $ctx->user()?->isAdmin()]),
+    ]);
+});
+```
+
+`build()` returns the same `reply_markup` array `Keyboard::inline()`/`reply()` always returns — pass
+it straight through, same as any other keyboard.
+
+---
+
 ## Handling Callback Queries
 
 Register handlers with `Bot::onCallbackQuery()`. Use `*` for wildcards.
@@ -182,3 +234,4 @@ Bot::run();
 | `Keyboard::url(string $text, string $url)` | `array` | Inline URL button |
 | `Keyboard::remove()` | `array` | Remove reply keyboard |
 | `Keyboard::paginate(array $items, int $page, callable $renderRow, string $cbPrefix, int $perPage = 10)` | `array` | Paginated inline keyboard with nav row |
+| `KeyboardInterface::build(array $vars = [])` | `array` | Contract for a reusable keyboard class — scaffold with `make:keyboard` |

@@ -16,6 +16,7 @@ class Lang
     private static ?string $path = null;
     private static string $defaultLocale = 'en';
     private static array $cache = [];
+    private static bool $autoFallback = false;
 
     public static function setPath(string $path): void
     {
@@ -34,14 +35,31 @@ class Lang
     }
 
     /**
+     * When on, a key missing from both the requested locale and the default
+     * locale is searched for in every other lang file before giving up —
+     * some translation beats none for a bot that hasn't shipped every
+     * language yet. Off by default: a missing key silently falls back to
+     * the raw key itself, same as before this existed.
+     */
+    public static function setAutoFallback(bool $enabled): void
+    {
+        self::$autoFallback = $enabled;
+    }
+
+    /**
      * Resolve a translation key for a locale, falling back to the default
-     * locale and then the key itself, interpolating `{placeholder}` vars.
+     * locale, then (if auto-fallback is on) every other shipped lang file,
+     * and finally the key itself, interpolating `{placeholder}` vars.
      */
     public static function get(string $locale, string $key, array $vars = []): string
     {
-        $text = self::lookup($locale, $key)
-            ?? self::lookup(self::$defaultLocale, $key)
-            ?? $key;
+        $text = self::lookup($locale, $key) ?? self::lookup(self::$defaultLocale, $key);
+
+        if ($text === null && self::$autoFallback) {
+            $text = self::fallbackLookup($key, $locale);
+        }
+
+        $text ??= $key;
 
         foreach ($vars as $name => $value) {
             $text = str_replace('{' . $name . '}', (string) $value, $text);
@@ -101,6 +119,42 @@ class Lang
         foreach (self::candidates($locale) as $candidate) {
             $value = self::load($candidate)[$key] ?? null;
             if ($value !== null) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Auto-fallback path: scan every other lang file that ships in
+     * lang_path for this key, in filename order, and use the first hit.
+     * Warns rather than crashing — a wrong-language string is still more
+     * useful to the end user than a raw translation key.
+     */
+    private static function fallbackLookup(string $key, string $locale): ?string
+    {
+        if (self::$path === null) {
+            return null;
+        }
+
+        $tried = array_unique([$locale, self::$defaultLocale]);
+        $files = glob(self::$path . DIRECTORY_SEPARATOR . '*.php') ?: [];
+        sort($files);
+
+        foreach ($files as $file) {
+            $candidate = basename($file, '.php');
+            if (in_array($candidate, $tried, true)) {
+                continue;
+            }
+
+            $value = self::load($candidate)[$key] ?? null;
+            if ($value !== null) {
+                Log::save(
+                    "Lang auto-fallback: key \"{$key}\" missing in \"{$locale}\" and \"" . self::$defaultLocale
+                        . "\", used \"{$candidate}\" instead.",
+                    'WARNING'
+                );
                 return $value;
             }
         }
