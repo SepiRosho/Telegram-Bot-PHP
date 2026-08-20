@@ -60,6 +60,9 @@ class UserHandlers {
 Bot::loadHandlers([UserHandlers::class, AdminHandlers::class]);
 ```
 
+`devflow make:handler <ClassName>` scaffolds a new group under `app/Handlers/` — add it to
+`Bot::loadHandlers()` afterward, it isn't wired in automatically.
+
 ---
 
 ## 3. Project layout (`vendor/bin/devflow new my-bot`)
@@ -435,11 +438,16 @@ class User extends TelegramUser {}          // app/Models/User.php
 vendor/bin/devflow new <name>              # scaffold a project
 vendor/bin/devflow doctor                  # diagnose env, token, DB, routes, webhook
 vendor/bin/devflow routes                  # list routes in evaluation order
+vendor/bin/devflow upgrade                 # check/apply scaffold changes after a library update
+vendor/bin/devflow upgrade --dry-run       # …preview only, no writes
 vendor/bin/devflow poll                    # long-polling (needs webhook:delete first)
 vendor/bin/devflow poll --drop-pending     # …skipping whatever queued while the bot was down
 vendor/bin/devflow broadcast:run           # process pending broadcasts
 vendor/bin/devflow migrate                 # run pending migrations
 vendor/bin/devflow migrate:status          # applied / Pending / Untracked
+vendor/bin/devflow migrate:rollback        # undo the most recent migration batch
+vendor/bin/devflow migrate:rollback --step=2  # undo the 2 most recent batches
+vendor/bin/devflow migrate:rollback --all  # undo every applied migration
 vendor/bin/devflow webhook:set <https-url> # register webhook (sends WEBHOOK_SECRET if set)
 vendor/bin/devflow webhook:delete
 vendor/bin/devflow webhook:info
@@ -451,6 +459,7 @@ vendor/bin/devflow make:text <Name>        # → app/Texts/
 vendor/bin/devflow make:service <Name>     # → app/Services/
 vendor/bin/devflow make:keyboard <Name>    # → app/Keyboards/, implements KeyboardInterface
 vendor/bin/devflow make:model <Name>       # → app/Models/, plain Eloquent model
+vendor/bin/devflow make:handler <Name>     # → app/Handlers/, handler group with static register()
 vendor/bin/devflow make:migration <name>   # → database/migrations/ (snake_case)
 vendor/bin/devflow make:migration create_orders_table --model  # …plus app/Models/Order.php
 vendor/bin/devflow ai:manifest             # regenerate .ai/api.json
@@ -458,6 +467,12 @@ vendor/bin/devflow ai:manifest             # regenerate .ai/api.json
 
 **When a bot misbehaves, run `devflow doctor` first** — it checks PHP extensions, `.env`, token
 validity, DB connectivity, base tables, route count and webhook status in one pass.
+
+**After bumping `devflow/telegram-bot` in an existing project, run `devflow upgrade`** — it creates
+any scaffold files/directories a newer library version expects that this project predates (e.g.
+`app/Keyboards/`, `app/Emojis.php`), and prints the exact snippet to paste into `bootstrap/app.php`
+for anything it won't edit automatically (that file is almost always hand-customized by then).
+Re-running it is always safe; already-applied checks just report OK.
 
 ---
 

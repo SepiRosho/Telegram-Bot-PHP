@@ -94,6 +94,23 @@ The model class name is derived from the table name (`orders` → `Order`, `orde
 ships with a commented-out `protected $table = '...'` line naming Eloquent's auto-detected guess, in
 case your actual table name doesn't match it.
 
+### Rolling back a migration
+
+`migrate:rollback` reverses the most recently applied *batch* — every migration that ran together
+in one `devflow migrate` call — by running each one's `down()` in reverse order:
+
+```bash
+vendor/bin/devflow migrate:rollback              # undo the last batch
+vendor/bin/devflow migrate:rollback --step=2      # undo the 2 most recent batches
+vendor/bin/devflow migrate:rollback --all         # undo every applied migration, all batches
+```
+
+Batches are numbered the same way `migrate` numbers them (`max(batch) + 1` each run), so two
+migrations created in the same `devflow migrate` call always roll back together. Write a real
+`down()` — `dropIfExists()` for a `create_*` migration, the inverse `Schema::table()` block for an
+`add_*_to_*` one — the generated stub for both already includes one; see the earlier examples on
+this page.
+
 ### Legacy: importing the raw SQL by hand
 
 If you'd rather not use the migration runner, the equivalent `.sql` files still ship under `vendor/devflow/telegram-bot/database/migrations/*.sql` and can be imported directly (phpMyAdmin's Import tab, or `mysql -u root -p my_bot < vendor/devflow/telegram-bot/database/migrations/telegram_users.sql`). Note this path won't track schema changes across library upgrades the way `devflow migrate` does.

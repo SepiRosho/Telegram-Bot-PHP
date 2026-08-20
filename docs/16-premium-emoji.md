@@ -97,4 +97,4 @@ Whichever mode you use, you still need to set `'parse_mode'` on the `$ctx->reply
 
 ## Next step
 
-[README.md](README.md) — back to the guide index.
+[17-upgrading.md](17-upgrading.md) — keeping a project's scaffold current as the library evolves.

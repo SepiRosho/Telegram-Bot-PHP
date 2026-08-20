@@ -29,6 +29,10 @@ class UserHandlers
 }
 ```
 
+Scaffold one with `vendor/bin/devflow make:handler <ClassName>`, which writes an empty
+`register()` under `app/Handlers/<ClassName>.php` — it isn't added to `Bot::loadHandlers()`
+automatically, so do that yourself as the next step.
+
 Then load it in `bootstrap/app.php`:
 
 ```php

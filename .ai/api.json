@@ -1,7 +1,7 @@
 {
     "library": "devflow/telegram-bot",
-    "version": "1.15.0",
-    "generated_at": "2026-08-19T16:47:45+00:00",
+    "version": "1.16.0",
+    "generated_at": "2026-08-20T08:13:05+00:00",
     "generator": "vendor/bin/devflow ai:manifest",
     "rules": [
         "Every $options array (including reply_markup) must be a PHP array. Never call json_encode() yourself — HttpClient encodes it, and pre-encoding produces a double-encoded value Telegram silently ignores.",
@@ -1636,10 +1636,12 @@
         "new <name>": "Scaffold a new standalone bot project",
         "doctor": "Diagnose env, token, database, routes and webhook in one run",
         "routes": "List every registered route in evaluation order",
+        "upgrade": "Check/apply scaffold changes after a library update (--dry-run to preview)",
         "poll": "Long-polling mode for local dev (no webhook)",
         "broadcast:run": "Process pending rows in telegram_broadcasts",
         "migrate": "Run pending database migrations",
         "migrate:status": "Show applied / Pending / Untracked migrations",
+        "migrate:rollback": "Undo the most recent migration batch (--step=N, --all)",
         "webhook:set <url>": "Register the webhook with Telegram",
         "webhook:delete": "Remove the webhook (required before poll works)",
         "webhook:info": "Show the currently registered webhook",
@@ -1651,6 +1653,7 @@
         "make:service <Name>": "Generate app/Services/<Name>.php",
         "make:keyboard <Name>": "Generate app/Keyboards/<Name>.php (implements KeyboardInterface)",
         "make:model <Name>": "Generate app/Models/<Name>.php (plain Eloquent model)",
+        "make:handler <Name>": "Generate app/Handlers/<Name>.php (handler group with a static register())",
         "make:migration <name>": "Generate a timestamped migration in database/migrations/ (--model also scaffolds the matching model)",
         "ai:manifest": "Regenerate .ai/api.json"
     }

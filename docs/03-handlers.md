@@ -291,7 +291,7 @@ Bot::init(env('BOT_TOKEN'), ['step_routes_first' => false]);
 
 For bots with many commands, putting everything in one place gets messy. Use handler groups to split bot logic into separate files.
 
-Each group is a class with a static `register()` method:
+Each group is a class with a static `register()` method — scaffold one with `vendor/bin/devflow make:handler <ClassName>`:
 
 ```php
 // app/Handlers/UserHandlers.php

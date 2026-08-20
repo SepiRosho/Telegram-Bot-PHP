@@ -80,6 +80,7 @@ vendor/bin/devflow make:text     WelcomeText        # -> app/Texts/WelcomeText.p
 vendor/bin/devflow make:service  PaymentService     # -> app/Services/PaymentService.php
 vendor/bin/devflow make:keyboard MainMenuKeyboard   # -> app/Keyboards/MainMenuKeyboard.php
 vendor/bin/devflow make:model    Order              # -> app/Models/Order.php
+vendor/bin/devflow make:handler  ShopHandlers       # -> app/Handlers/ShopHandlers.php
 vendor/bin/devflow make:migration create_orders_table  # -> database/migrations/<timestamp>_create_orders_table.php
 vendor/bin/devflow make:migration create_orders_table --model  # …plus app/Models/Order.php
 ```
@@ -93,8 +94,10 @@ vendor\bin\devflow make:text     WelcomeText
 ### Diagnostics
 
 ```bash
-vendor/bin/devflow doctor    # PHP extensions, .env, token, DB, base tables, routes, webhook
-vendor/bin/devflow routes    # every registered route, in evaluation order
+vendor/bin/devflow doctor            # PHP extensions, .env, token, DB, base tables, routes, webhook
+vendor/bin/devflow routes            # every registered route, in evaluation order
+vendor/bin/devflow upgrade           # bring the scaffold current after updating the library
+vendor/bin/devflow migrate:rollback  # undo the most recent migration batch
 ```
 
 `doctor` is the fastest answer to "why isn't my bot responding?" — it runs every check and prints

@@ -1,0 +1,16 @@
+<?php
+
+namespace {{ Namespace }};
+
+use Devflow\TelegramBot\Bot;
+use Devflow\TelegramBot\Context;
+
+class {{ ClassName }}
+{
+    public static function register(): void
+    {
+        // Bot::onCommand('example', function (Context $ctx) {
+        //     $ctx->reply('Hello!');
+        // });
+    }
+}
