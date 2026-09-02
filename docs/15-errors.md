@@ -32,7 +32,7 @@ try {
 | `isPermissionDenied()` | The bot is in the chat but can't post | Grant rights — the user isn't gone |
 | `isIgnorable()` | No-op edit, stale callback query, message already deleted | Swallow it |
 | `isRateLimited()` | 429 | Wait `retryAfter()` seconds |
-| `isTransient()` | 5xx or a network failure | Retry later |
+| `isTransient()` | 5xx or a network failure | Retry later — or set `retry_transient` to have the library do it |
 | `isExpected()` | Any of the above | Don't log it as a crash |
 
 `isChatUnavailable()` and `isPermissionDenied()` are mutually exclusive on purpose. "Not enough

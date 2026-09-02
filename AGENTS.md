@@ -104,8 +104,13 @@ logs/                    Daily log files
 | `debug` | bool | `false` | Logs every route match/no-match, including chat-filter drops. |
 | `step_routes_first` | bool | `true` | Evaluate step routes first, regardless of registration order. |
 | `auto_answer_callbacks` | bool | `true` | Auto-answers unrouted callback queries so the tap spinner clears. |
-| `max_retries` | int | `2` | Retries after a 429, honouring `retry_after`. Uploads are never retried. |
-| `max_retry_after` | int | `60` | Longest `retry_after` (seconds) worth waiting on. |
+| `max_retries` | int | `2` | Retries after a 429 (or, with `retry_transient`, a 5xx/network failure), honouring `retry_after`. Uploads are retried too. |
+| `max_retry_after` | int | `60` | Longest wait (seconds) worth sleeping through before throwing instead. |
+| `retry_transient` | bool | `false` | Also retry `isTransient()` errors (5xx, network failures) with exponential backoff, not just a 429. |
+| `retry_jitter` | float | `0.0` | Extra random jitter on top of the computed wait, as a fraction of it (`0.1` = up to +10%). |
+| `retry_strategy` | ?callable | `null` | `callable(int $attempt, int $baseWaitSeconds, TelegramApiException $e): int` — overrides the computed wait entirely. |
+| `on_retry` | ?callable | `null` | `callable(int $attempt, int $waitSeconds, string $method, TelegramApiException $e): void` — observer fired right before sleeping. |
+| `sleeper` | ?callable | `null` | `callable(int $seconds): void` — replaces the blocking `sleep()`, e.g. to suspend a Fiber instead. |
 | `timeout` | int | `30` | HTTP timeout, seconds. |
 
 Env vars in a scaffolded `.env`: `BOT_TOKEN`, `ADMIN_CHAT_ID`, `LANGUAGE_CODE`, `LANG_AUTO_FALLBACK`,
@@ -533,8 +538,13 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
 ## 17. Error handling
 
 `TelegramApiException` carries `telegramErrorCode()`, `parameters()`, `retryAfter()`,
-`migrateToChatId()`. 429s are retried automatically within `max_retries`/`max_retry_after`; if one
-still surfaces, `retryAfter()` says how long Telegram wanted.
+`migrateToChatId()`. 429s are retried automatically within `max_retries`/`max_retry_after` — uploads
+included, since a fresh stream is opened per attempt — falling back to exponential backoff
+(1s, 2s, 4s, …) when Telegram's response didn't include a `retry_after`. Set `retry_transient` to
+extend the same retry to 5xx/network failures too. `retry_jitter`, `retry_strategy` and `on_retry`
+customize the wait itself or observe it; `sleeper` replaces the blocking `sleep()` call, e.g. to
+suspend a Fiber instead of stalling the worker. If a wait still surfaces, `retryAfter()` says how
+long Telegram wanted. See §4's config table and [14-files-and-limits.md](docs/14-files-and-limits.md).
 
 ### Classifying an error
 

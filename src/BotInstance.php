@@ -47,7 +47,11 @@ class BotInstance
         }
 
         $httpOptions = [];
-        foreach (['proxy', 'timeout', 'max_retries', 'max_retry_after'] as $option) {
+        $httpOptionKeys = [
+            'proxy', 'timeout', 'max_retries', 'max_retry_after',
+            'retry_transient', 'retry_jitter', 'retry_strategy', 'on_retry', 'sleeper',
+        ];
+        foreach ($httpOptionKeys as $option) {
             if (isset($config[$option]) && $config[$option] !== null && $config[$option] !== '') {
                 $httpOptions[$option] = $config[$option];
             }

@@ -130,8 +130,13 @@ class AiManifestCommand
             'step_routes_first'    => ['type' => 'bool', 'default' => true, 'description' => 'Evaluate all step routes before other route types, independent of registration order.'],
             'auto_answer_callbacks' => ['type' => 'bool', 'default' => true, 'description' => 'Auto-calls answerCallbackQuery when no route matched a callback query, clearing the tap spinner.'],
             'allowed_chat_types'   => ['type' => '?array', 'default' => null, 'description' => "Restricts routes to these chat types, e.g. ['private']. null means no filtering. Updates with no chat, and group/channel-only update types like my_chat_member, always pass."],
-            'max_retries'          => ['type' => 'int', 'default' => 2, 'description' => 'How many times to retry after a 429, honouring Telegram\'s retry_after. Uploads are never retried.'],
-            'max_retry_after'      => ['type' => 'int', 'default' => 60, 'description' => 'Longest retry_after (seconds) worth waiting on before throwing instead.'],
+            'max_retries'          => ['type' => 'int', 'default' => 2, 'description' => 'How many times to retry after a 429 (or, with retry_transient, a 5xx/network failure), honouring Telegram\'s retry_after. Uploads are retried too — a fresh stream is opened per attempt.'],
+            'max_retry_after'      => ['type' => 'int', 'default' => 60, 'description' => 'Longest wait (seconds) worth sleeping through before throwing instead.'],
+            'retry_transient'      => ['type' => 'bool', 'default' => false, 'description' => 'Also retry isTransient() errors (5xx, network failures) using exponential backoff, not just a 429.'],
+            'retry_jitter'         => ['type' => 'float', 'default' => 0.0, 'description' => 'Extra random jitter added on top of the computed wait, as a fraction of it (0.1 = up to +10%).'],
+            'retry_strategy'       => ['type' => '?callable', 'default' => null, 'description' => 'callable(int $attempt, int $baseWaitSeconds, TelegramApiException $e): int — overrides the computed wait entirely.'],
+            'on_retry'             => ['type' => '?callable', 'default' => null, 'description' => 'callable(int $attempt, int $waitSeconds, string $method, TelegramApiException $e): void — observer invoked before sleeping.'],
+            'sleeper'              => ['type' => '?callable', 'default' => null, 'description' => 'callable(int $seconds): void — replaces the blocking sleep(), e.g. to suspend a Fiber instead.'],
             'timeout'              => ['type' => 'int', 'default' => 30, 'description' => 'HTTP timeout in seconds.'],
         ];
     }

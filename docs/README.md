@@ -17,7 +17,7 @@ Step-by-step guides for building a bot with this library.
 | [11 — Keyboards](11-keyboards.md) | `Keyboard::inline()`, `Keyboard::reply()`, `Keyboard::button()`, `Keyboard::url()`, `Keyboard::remove()`, `Keyboard::paginate()`, reusable `KeyboardInterface` classes via `make:keyboard` |
 | [12 — i18n](12-i18n.md) | `Support\Lang` + `$ctx->t()` — key-based translations with per-user locale, the recommended i18n approach |
 | [13 — Chat Types](13-chat-types.md) | Restricting a bot to private chats, why it matters, and letting specific routes into groups |
-| [14 — Files & Limits](14-files-and-limits.md) | Uploading local files with `InputFile`; automatic 429 / `retry_after` handling |
+| [14 — Files & Limits](14-files-and-limits.md) | Uploading local files with `InputFile`; automatic 429 / `retry_after` handling with pluggable backoff, jitter and `retry_transient` |
 | [15 — Errors & Reliability](15-errors.md) | Telling "user blocked the bot" apart from a real bug; polling backoff; `poll --drop-pending` |
 | [16 — Premium Emoji](16-premium-emoji.md) | `Support\Emoji` — register premium emoji by name, use `:shortcode:` syntax instead of raw `<tg-emoji>`/`tg://emoji` markup |
 | [17 — Upgrading](17-upgrading.md) | `devflow upgrade` — bring an existing project's scaffold current after a library update; `migrate:rollback` |

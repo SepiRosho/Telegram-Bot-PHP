@@ -53,7 +53,10 @@ Telegram allows roughly 30 messages per second overall, and about one per second
 Exceed that and it replies with error 429 and a `retry_after` telling you how many seconds to wait.
 
 The library honours that automatically: a 429 is retried up to `max_retries` times, sleeping for
-exactly the `retry_after` Telegram asked for.
+the `retry_after` Telegram asked for — or, if the response didn't include one, an exponential
+backoff (1s, 2s, 4s, …) instead. **Uploads are retried too**: `InputFile::open()` returns a fresh
+handle or string on every attempt, so a retry sends a new body rather than replaying an already-
+consumed stream.
 
 ```php
 Bot::init(env('BOT_TOKEN'), [
@@ -62,12 +65,65 @@ Bot::init(env('BOT_TOKEN'), [
 ]);
 ```
 
-Two deliberate limits:
+One deliberate limit: **waits longer than `max_retry_after` are not slept through.** A webhook
+request holding a connection open for five minutes is worse than a failed send — it throws instead,
+and `retryAfter()` on the caught exception says how long Telegram actually wanted.
 
-- **Waits longer than `max_retry_after` are not slept through.** A webhook request holding a
-  connection open for five minutes is worse than a failed send.
-- **Uploads are never retried.** An `InputFile` opened as a stream is consumed by the first
-  attempt, so replaying the request would send an empty body. The 429 surfaces to you instead.
+### Retrying 5xx and network failures too
+
+429 is the only thing retried by default — a 5xx or a network hiccup surfaces immediately as
+`TelegramApiException` with `isTransient()` true, for you to handle (see
+[15-errors.md](15-errors.md)). Set `retry_transient` to fold those into the same retry loop instead,
+using the same exponential backoff a 429 without a `retry_after` falls back to:
+
+```php
+Bot::init(env('BOT_TOKEN'), ['retry_transient' => true]);
+```
+
+Off by default because it changes what used to be an immediate throw into a wait — worth opting into
+deliberately rather than as a side effect of upgrading.
+
+### Customizing the backoff
+
+Three hooks, none required:
+
+```php
+Bot::init(env('BOT_TOKEN'), [
+    // Extra random jitter on top of the computed wait, as a fraction of it.
+    // 0.1 = up to +10% — smooths out several workers retrying on the exact
+    // same second after they all got rate-limited together.
+    'retry_jitter' => 0.1,
+
+    // Overrides the wait entirely when set. Runs before jitter, so pick one
+    // or the other rather than stacking your own jitter on top of this.
+    'retry_strategy' => function (int $attempt, int $baseWaitSeconds, TelegramApiException $e): int {
+        return min(30, $baseWaitSeconds * 2);
+    },
+
+    // Pure observer, fired right before sleeping — logging/metrics only,
+    // it cannot change the wait.
+    'on_retry' => function (int $attempt, int $waitSeconds, string $method, TelegramApiException $e) {
+        saveLog("Retrying {$method} in {$waitSeconds}s (attempt {$attempt})", 'WARNING');
+    },
+]);
+```
+
+### The wait itself is still a blocking `sleep()` by default
+
+This library is synchronous — a long wait blocks whatever process hit it (a webhook worker, the
+`poll` loop, `broadcast:run`). `max_retry_after` bounds how bad that gets, and `sleeper` lets you
+replace the actual wait mechanism if your runtime can do better than blocking:
+
+```php
+Bot::init(env('BOT_TOKEN'), [
+    'sleeper' => function (int $seconds) {
+        \Fiber::suspend(); // or a ReactPHP/Swoole timer — whatever your event loop provides
+    },
+]);
+```
+
+This does not make the library asynchronous end to end — it only makes the one blocking call inside
+the retry loop swappable, for callers whose runtime already supports suspending instead of blocking.
 
 ### Handling one that still gets through
 
