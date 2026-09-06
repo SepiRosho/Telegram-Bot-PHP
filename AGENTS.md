@@ -631,3 +631,10 @@ never warned about.
   it in `showHelp()`; `ConsoleApplicationTest` fails if help advertises an unregistered command.
 - Scaffold templates all live in `Console\Commands\NewProjectCommand`.
 - After changing the public surface, run `vendor/bin/devflow ai:manifest` and update this file.
+- **Shipping a new version**: if it adds a required scaffold file/directory, a `bootstrap/app.php`
+  config key, or a new optional config/command worth telling an upgrading developer about, add
+  `Console\Upgrades\<version>.php` (see §14's `upgrade` entry and
+  [docs/17-upgrading.md](docs/17-upgrading.md#extending-the-checklist-contributing-to-the-library))
+  in the same commit as the version bump — not a follow-up. `devflow upgrade` only knows what's in
+  that directory; a version with real scaffold impact and no file there silently gives an upgrading
+  project no signal at all.
