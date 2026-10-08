@@ -23,6 +23,9 @@ return new class extends Migration
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
+
+            $table->index('status');
+            $table->index('scheduled_at');
         });
     }
 

@@ -22,9 +22,14 @@
  *    TELEGRAM_DATABASE=true
  *    TELEGRAM_WEBHOOK_ROUTE=telegram/webhook
  *
+ *    (Laravel reads TELEGRAM_*, not the standalone BOT_TOKEN / WEBHOOK_SECRET.)
+ *
  * 4. REGISTER YOUR HANDLERS
  * --------------------------
  *    The webhook route is auto-registered at POST /telegram/webhook.
+ *    It replies 403 to a bad secret, 400 to a malformed body, and 200 otherwise —
+ *    a throwing handler is passed to report() rather than failing the request.
+ *    Test it with $this->postJson('/telegram/webhook', $update) (see Bot::fake()).
  *    Register your handlers in a service provider or routes/telegram.php.
  */
 

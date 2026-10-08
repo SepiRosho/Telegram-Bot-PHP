@@ -28,10 +28,10 @@ return new class {
             $table->json('temp_data')->nullable();
             $table->json('rate_hits')->nullable();
             $table->string('current_panel', 20)->default('user');
-            $table->string('referral_code', 32)->nullable();
+            $table->string('referral_code', 32)->nullable()->unique();
             $table->unsignedBigInteger('invited_by')->nullable();
             $table->timestamp('joined_at')->useCurrent();
-            $table->timestamp('last_activity_at')->useCurrent();
+            $table->timestamp('last_activity_at')->useCurrent()->useCurrentOnUpdate();
 
             $table->foreign('invited_by')->references('id')->on('telegram_users')->nullOnDelete();
         });

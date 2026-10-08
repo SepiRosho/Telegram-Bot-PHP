@@ -23,6 +23,16 @@ class Bot
         return static::$instance;
     }
 
+    /**
+     * Make an already-built instance the one Bot::* routes to. For framework
+     * integrations that construct the BotInstance themselves (the Laravel
+     * container) and must keep the static facade pointing at it.
+     */
+    public static function setInstance(BotInstance $instance): void
+    {
+        static::$instance = $instance;
+    }
+
     public static function getInstance(): BotInstance
     {
         if (static::$instance === null) {

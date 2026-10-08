@@ -368,26 +368,48 @@ class BotInstance
     // Dispatch
     // -------------------------------------------------------------------------
 
+    /**
+     * Standalone entry point: reads the request from PHP's globals. A framework
+     * with its own request object (Laravel, Octane, tests) should call
+     * handleWebhook() with the body and header it already has instead.
+     */
     public function run(): void
     {
+        try {
+            $this->handleWebhook(
+                (string) file_get_contents('php://input'),
+                $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null,
+            );
+        } catch (WebhookException $e) {
+            // Set the status before rethrowing: PHP's default uncaught-exception
+            // handling otherwise surfaces this as a 500, not the more correct 403.
+            http_response_code($e->statusCode());
+            throw $e;
+        }
+    }
+
+    /**
+     * Verify and dispatch one webhook delivery.
+     *
+     * @param string      $payload     Raw request body.
+     * @param string|null $secretToken Value of X-Telegram-Bot-Api-Secret-Token, if any.
+     *
+     * @throws WebhookException 403 for a bad secret, 400 for a malformed body.
+     */
+    public function handleWebhook(string $payload, ?string $secretToken = null): void
+    {
         $webhookSecret = $this->config['webhook_secret'] ?? null;
-        if ($webhookSecret !== null) {
-            $received = $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '';
-            if (!hash_equals((string) $webhookSecret, $received)) {
-                // Set the status before throwing: PHP's default uncaught-exception
-                // handling otherwise surfaces this as a 500, not the more correct 403.
-                http_response_code(403);
-                throw new WebhookException('Invalid webhook secret token.');
+        if ($webhookSecret !== null && $webhookSecret !== '') {
+            if (!hash_equals((string) $webhookSecret, (string) $secretToken)) {
+                throw new WebhookException('Invalid webhook secret token.', 403);
             }
         }
 
-        $input = file_get_contents('php://input');
-
-        if (empty($input)) {
+        if ($payload === '') {
             throw new WebhookException('Empty webhook payload received.');
         }
 
-        $data = json_decode($input, true);
+        $data = json_decode($payload, true);
 
         if (!is_array($data)) {
             throw new WebhookException('Invalid JSON in webhook payload.');

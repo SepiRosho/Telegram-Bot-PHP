@@ -519,19 +519,39 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
 
   TelegramBot::onCommand('start', function (Context $ctx) { $ctx->reply('Hi!'); });
   ```
-  `Bot::onCommand()` also works as long as `TelegramBotServiceProvider` is registered (it forces
-  `Bot::init()` during its own `boot()`, which Laravel always runs before a consuming app's provider).
-- **Config**: `config/telegram.php` (publish with `--tag=telegram-config`) ships `token`,
-  `webhook_secret`, `database`, `webhook_route`. The whole array is passed to `Bot::init()`, so add
-  any other key from §1's config table (`proxy`, `lang_path`, `allowed_chat_types`, ...) to it
-  directly — they aren't in the file by default.
-- **Migrations**: `--tag=telegram-migrations` publishes the same `telegram_users` /
-  `bot_settings` / `telegram_broadcasts` schema `devflow migrate` uses standalone.
-- **Webhook route**: auto-registered at `telegram.webhook_route` (default `telegram/webhook`) —
-  set it to `null` to wire your own route calling `app(BotInstance::class)->run()`.
-- **Artisan commands**: `php artisan telegram:set-webhook <url>`, `telegram:delete-webhook`,
-  `telegram:webhook-info`. Need `illuminate/console` on the classpath (always present in a real
-  Laravel app).
+  `Bot::onCommand()` also works as long as `TelegramBotServiceProvider` is registered (it points
+  `Bot::` at the container's instance during its own `boot()`, which Laravel always runs before a
+  consuming app's provider).
+- **Config**: `config/telegram.php` (publish with `--tag=telegram-config`). The whole array is passed
+  to `Bot::init()`, so every key in §1's config table works there; the published file already lists
+  `allowed_chat_types` (set `['private']` unless the bot is for groups), `lang_path`,
+  `default_locale`, `user_model`, `proxy`, `max_retries`, `retry_transient` and `webhook_middleware`.
+- **Env vars differ from standalone**: Laravel reads `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`,
+  `TELEGRAM_DATABASE`, `TELEGRAM_WEBHOOK_ROUTE`, `TELEGRAM_PROXY`. The standalone scaffold's
+  `BOT_TOKEN` / `WEBHOOK_SECRET` mean nothing to Laravel.
+- **A missing token doesn't break `artisan`**: the app boots (so `composer install`, `package:discover`,
+  `config:cache` and CI work before secrets exist). The first real API call — a handler replying,
+  `telegram:set-webhook` — throws `MissingTokenException` naming `TELEGRAM_BOT_TOKEN`.
+- **Migrations**: `vendor:publish --tag=telegram-migrations` copies `telegram_users` / `bot_settings` /
+  `telegram_broadcasts` into `database/migrations/` **with timestamped names** (Laravel ignores files
+  without one), then `php artisan migrate`. Re-publishing reuses the earlier file names instead of
+  duplicating. The schema is identical to what `devflow migrate` builds standalone (a test enforces it).
+- **Webhook route**: `POST` `telegram.webhook_route` (default `telegram/webhook`, route name
+  `telegram.webhook`), served by `Devflow\TelegramBot\Laravel\WebhookController` — so `route:cache`
+  works. It has **no middleware group** (no CSRF, which is what you want, but also no throttling):
+  add some via `webhook_middleware`. Set the route to `null` to wire your own; call
+  `app(BotInstance::class)->handleWebhook($request->getContent(), $request->header('X-Telegram-Bot-Api-Secret-Token'))`
+  — not `run()`, which reads `php://input`/`$_SERVER` and so breaks under feature tests and Octane.
+- **Webhook responses**: bad/missing secret → `403`, unparseable body → `400`, anything a handler throws
+  → `200` (Telegram would otherwise redeliver forever) after being passed to Laravel's `report()`.
+  Expected Telegram errors (blocked user, stale callback) are absorbed silently as in standalone (§17).
+- **Testing**: `Bot::fake()` works through the route — `$this->postJson('/telegram/webhook', $update)`
+  dispatches to the fake (which has no `webhook_secret`, so no header is needed). Register handlers
+  *after* `Bot::fake()` using `Bot::` — `TelegramBot::` still points at the real container instance.
+- **Artisan commands**: `php artisan telegram:set-webhook <url>` (sends `TELEGRAM_WEBHOOK_SECRET` as the
+  secret unless `--secret=` overrides it), `telegram:delete-webhook`, `telegram:webhook-info`. API
+  failures print one error line and exit non-zero. Need `illuminate/console` (always present in Laravel).
+- **Supported**: Laravel 10 – 13 (Guzzle 7 and 8).
 
 ---
 
@@ -591,7 +611,9 @@ group permission problem would drop them from broadcasts for a reason unrelated 
 malformed payload. `BotNotInitializedException` means `Bot::init()` was never called.
 
 `public/webhook.php` always returns HTTP 200 before dispatching, so Telegram never retries on a
-crash; failures go to `logs/` and to `ADMIN_CHAT_ID` via `botLog()`.
+crash; failures go to `logs/` and to `ADMIN_CHAT_ID` via `botLog()`. Under Laravel the bundled webhook
+controller gives the same guarantee for handler errors (reported through `report()`, answered `200`);
+only a bad secret (`403`) or malformed body (`400`) is refused.
 
 ---
 

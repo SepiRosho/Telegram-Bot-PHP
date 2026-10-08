@@ -553,11 +553,21 @@ php artisan vendor:publish --tag=telegram-migrations
 php artisan migrate
 ```
 
-Add to `.env`:
+Add to `.env` (Laravel uses these names, not the standalone `BOT_TOKEN` / `WEBHOOK_SECRET`):
 ```
 TELEGRAM_BOT_TOKEN=your_token
+TELEGRAM_WEBHOOK_SECRET=optional_secret
 TELEGRAM_DATABASE=true
 ```
+
+The published migrations get timestamped names so `php artisan migrate` picks them up. Without
+`TELEGRAM_BOT_TOKEN` the app still boots (`artisan`, `composer install` and CI keep working); the first
+API call fails with a message naming the variable.
+
+The webhook route (`POST /telegram/webhook`, cacheable with `route:cache`) answers `403` for a wrong
+secret, `400` for a malformed body, and `200` even when a handler throws (the error goes to Laravel's
+`report()`, so Telegram doesn't redeliver it). It sits outside the `web`/`api` middleware groups — add
+throttling or the like through `webhook_middleware` in `config/telegram.php`.
 
 Register handlers in a service provider:
 
