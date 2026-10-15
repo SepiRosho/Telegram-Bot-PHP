@@ -5,7 +5,9 @@ namespace Devflow\TelegramBot\Laravel;
 use Devflow\TelegramBot\Api\MissingTokenHttpClient;
 use Devflow\TelegramBot\Bot;
 use Devflow\TelegramBot\BotInstance;
+use Devflow\TelegramBot\Laravel\Console\BroadcastCommand;
 use Devflow\TelegramBot\Laravel\Console\DeleteWebhookCommand;
+use Devflow\TelegramBot\Laravel\Console\PollCommand;
 use Devflow\TelegramBot\Laravel\Console\SetWebhookCommand;
 use Devflow\TelegramBot\Laravel\Console\WebhookInfoCommand;
 use Illuminate\Support\Facades\Route;
@@ -75,6 +77,8 @@ class TelegramBotServiceProvider extends ServiceProvider
                 SetWebhookCommand::class,
                 DeleteWebhookCommand::class,
                 WebhookInfoCommand::class,
+                PollCommand::class,
+                BroadcastCommand::class,
             ]);
         }
 

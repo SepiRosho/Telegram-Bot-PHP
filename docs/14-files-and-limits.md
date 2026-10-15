@@ -149,3 +149,29 @@ supergroup its chat id changes, and Telegram returns the new one in the error. U
 `vendor/bin/devflow broadcast:run` paces itself with `BROADCAST_RATE` in `.env` (default 25/sec,
 Telegram's ceiling is 30). Automatic 429 handling is a safety net beneath that, not a replacement —
 keep the rate under the limit rather than relying on retries.
+
+## Downloading files
+
+```php
+$photo = $ctx->message()->photo;                       // sizes, smallest first
+$bytes = Bot::fileContents(end($photo)['file_id']);    // the bytes, as a string
+Bot::downloadFile($doc['file_id'], 'storage/in.pdf');  // saved; parent folders are created
+```
+
+Both do `getFile` and then fetch `/file/bot<token>/<file_path>` for you. Telegram's cloud server
+serves files up to 20 MB; beyond that `getFile` returns no `file_path` and you get a
+`TelegramApiException`.
+
+## Self-hosted Bot API server and the test environment
+
+```php
+Bot::init($token, [
+    'api_url' => 'http://localhost:8081',   // a telegram-bot-api server you run
+    'test_environment' => false,            // true → Telegram's test servers
+]);
+```
+
+A self-hosted server removes the 20 MB download and 50 MB upload caps. If it runs with `--local`,
+`getFile` returns an absolute path on *its* disk; when that path is readable from your app (same
+machine or a shared volume) `fileContents()` / `downloadFile()` read it straight from disk instead of
+making an HTTP request. Laravel: `TELEGRAM_API_URL`, `TELEGRAM_TEST_ENVIRONMENT`.

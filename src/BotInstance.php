@@ -49,7 +49,7 @@ class BotInstance
 
         $httpOptions = [];
         $httpOptionKeys = [
-            'proxy', 'timeout', 'max_retries', 'max_retry_after',
+            'proxy', 'timeout', 'api_url', 'test_environment', 'max_retries', 'max_retry_after',
             'retry_transient', 'retry_jitter', 'retry_strategy', 'on_retry', 'sleeper',
         ];
         foreach ($httpOptionKeys as $option) {
@@ -576,8 +576,11 @@ class BotInstance
                 // Some failures never resolve by waiting. Retrying them prints
                 // the same line every few seconds until someone kills the
                 // process, which reads exactly like a hang.
-                if ($e instanceof TelegramApiException
-                    && in_array($e->telegramErrorCode(), self::POLLING_FATAL_CODES, true)) {
+                // No token never fixes itself either — and with the Laravel
+                // provider's lazy client it surfaces here, not at boot.
+                if ($e instanceof MissingTokenException
+                    || ($e instanceof TelegramApiException
+                        && in_array($e->telegramErrorCode(), self::POLLING_FATAL_CODES, true))) {
                     if ($onError !== null) {
                         ($onError)($e, 0);
                     }

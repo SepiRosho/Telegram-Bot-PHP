@@ -9,7 +9,7 @@ namespace Devflow\TelegramBot\Api;
  *
  * See Testing\FakeBot / Bot::fake() for the higher-level test harness.
  */
-class FakeHttpClient implements HttpClientInterface
+class FakeHttpClient implements HttpClientInterface, FileDownloaderInterface
 {
     private array $calls = [];
     private array $queuedResponses = [];
@@ -57,6 +57,17 @@ class FakeHttpClient implements HttpClientInterface
         return $this->calls;
     }
 
+    /**
+     * Records the download as a call to the pseudo-method "download" and returns
+     * whatever respond('download', ...) queued, else "contents of <path>".
+     */
+    public function download(string $filePath): string
+    {
+        $result = $this->post('download', ['file_path' => $filePath]);
+
+        return is_string($result) ? $result : "contents of {$filePath}";
+    }
+
     /** Recorded calls filtered to a single method. */
     public function callsTo(string $method): array
     {
@@ -75,6 +86,7 @@ class FakeHttpClient implements HttpClientInterface
             'editMessageText', 'editMessageCaption', 'editMessageMedia', 'editMessageReplyMarkup',
                 => $this->fakeMessage($params),
             'getUpdates' => [],
+            'getFile' => ['file_id' => $params['file_id'] ?? '', 'file_unique_id' => 'unique', 'file_size' => 12, 'file_path' => 'documents/file_1.bin'],
             'sendMediaGroup' => [$this->fakeMessage($params)],
             'getChatMember' => ['status' => 'member', 'user' => ['id' => $params['user_id'] ?? 0, 'is_bot' => false, 'first_name' => 'Test']],
             'getChat' => ['id' => $params['chat_id'] ?? 0, 'type' => 'private'],

@@ -6,9 +6,10 @@ use Devflow\TelegramBot\Exceptions\TelegramApiException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 
-class HttpClient implements HttpClientInterface
+class HttpClient implements HttpClientInterface, FileDownloaderInterface
 {
     private Client $client;
+    private string $fileBaseUri;
     private int $maxRetries;
     private int $maxRetryAfter;
     private bool $retryTransient;
@@ -25,8 +26,15 @@ class HttpClient implements HttpClientInterface
 
     public function __construct(string $token, array $options = [])
     {
+        // 'api_url' points at a self-hosted Bot API server (no upload/download size
+        // caps, local file access); 'test_environment' targets Telegram's test servers.
+        $apiUrl = rtrim((string) ($options['api_url'] ?? 'https://api.telegram.org'), '/');
+        $env    = !empty($options['test_environment']) ? '/test' : '';
+
+        $this->fileBaseUri = "{$apiUrl}/file/bot{$token}{$env}/";
+
         $clientOptions = [
-            'base_uri' => "https://api.telegram.org/bot{$token}/",
+            'base_uri' => "{$apiUrl}/bot{$token}{$env}/",
             'timeout' => $options['timeout'] ?? 30,
             // Telegram signals rate limits with a 429 body we need to read, so
             // 4xx/5xx must not become Guzzle exceptions before we get a chance
@@ -81,6 +89,32 @@ class HttpClient implements HttpClientInterface
         };
 
         $this->client = new Client($clientOptions);
+    }
+
+    /**
+     * A self-hosted server started with --local reports file_path as an
+     * absolute path on its own disk, not something to GET; when that path is
+     * readable from here (same machine / shared volume) it is read directly.
+     */
+    public function download(string $filePath): string
+    {
+        $isAbsolute = str_starts_with($filePath, '/') || preg_match('#^[A-Za-z]:[\\\\/]#', $filePath) === 1;
+        if ($isAbsolute && is_file($filePath) && is_readable($filePath)) {
+            return (string) file_get_contents($filePath);
+        }
+
+        try {
+            $response = $this->client->get($this->fileBaseUri . ltrim($filePath, '/'));
+        } catch (GuzzleException $e) {
+            throw new TelegramApiException($e->getMessage(), $e->getCode(), $e);
+        }
+
+        $status = $response->getStatusCode();
+        if ($status !== 200) {
+            throw new TelegramApiException("Could not download file (HTTP {$status})", $status);
+        }
+
+        return $response->getBody()->getContents();
     }
 
     public function post(string $method, array $params = []): mixed

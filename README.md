@@ -587,6 +587,20 @@ Set your webhook:
 
 ```bash
 php artisan telegram:set-webhook https://yourdomain.com/telegram/webhook
+# or just `php artisan telegram:set-webhook` to use the route under APP_URL
+# options: --allowed-updates=message,chat_member|all  --max-connections=  --ip-address=  --certificate=  --drop-pending
+```
+
+No public URL while developing? Poll instead (delete any registered webhook first):
+
+```bash
+php artisan telegram:poll
+```
+
+Send queued broadcasts (put it on the scheduler: `Schedule::command('telegram:broadcast')->everyMinute()->withoutOverlapping()`):
+
+```bash
+php artisan telegram:broadcast
 ```
 
 ---

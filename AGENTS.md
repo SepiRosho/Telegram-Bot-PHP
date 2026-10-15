@@ -113,6 +113,8 @@ logs/                    Daily log files
 | `on_retry` | ?callable | `null` | `callable(int $attempt, int $waitSeconds, string $method, TelegramApiException $e): void` — observer fired right before sleeping. |
 | `sleeper` | ?callable | `null` | `callable(int $seconds): void` — replaces the blocking `sleep()`, e.g. to suspend a Fiber instead. |
 | `timeout` | int | `30` | HTTP timeout, seconds. |
+| `api_url` | ?string | `https://api.telegram.org` | Base URL of a **self-hosted Bot API server** (lifts the 20 MB download / 50 MB upload caps; with `--local` it reports file paths on its own disk, which `fileContents()` reads directly). |
+| `test_environment` | bool | `false` | Use Telegram's test servers (`/bot<token>/test/…`). |
 
 Env vars in a scaffolded `.env`: `BOT_TOKEN`, `ADMIN_CHAT_ID`, `LANGUAGE_CODE`, `LANG_AUTO_FALLBACK`,
 `WEBHOOK_SECRET`, `PROXY_URL`, `BROADCAST_RATE`, `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`,
@@ -378,6 +380,17 @@ $ctx->replyWithPhoto(InputFile::contents($pngBytes, 'chart.png'));      // gener
 A plain string is a `file_id` or URL. An `InputFile` switches the request to a multipart upload —
 still pass `$options` as arrays; the library JSON-encodes them for multipart itself.
 
+**Downloading** what a user sent:
+
+```php
+$photo = $ctx->message()->photo;                         // array of sizes, smallest first
+$bytes = Bot::fileContents(end($photo)['file_id']);      // string
+Bot::downloadFile($ctx->message()->document['file_id'], storage_path('app/in.pdf'));  // saves, returns path
+```
+
+`getFile` + the download in one call. The cloud server caps downloads at 20 MB (`file_path` is then
+missing and a `TelegramApiException` says so); set `api_url` to a self-hosted Bot API server to lift it.
+
 ---
 
 ## 11. i18n
@@ -468,6 +481,8 @@ vendor/bin/devflow migrate:rollback --step=2  # undo the 2 most recent batches
 vendor/bin/devflow migrate:rollback --all  # undo every applied migration
 vendor/bin/devflow webhook:set <https-url> [--allowed-updates=message,chat_member|all|default]
                                                # register webhook (sends WEBHOOK_SECRET if set)
+                                               # also: --secret= --max-connections= --ip-address=
+                                               #       --certificate=public.pem --drop-pending
 vendor/bin/devflow webhook:delete
 vendor/bin/devflow webhook:info
 vendor/bin/devflow make:command <Name>     # → app/Commands/
@@ -485,7 +500,9 @@ vendor/bin/devflow ai:manifest             # regenerate .ai/api.json
 ```
 
 **When a bot misbehaves, run `devflow doctor` first** — it checks PHP extensions, `.env`, token
-validity, DB connectivity, base tables, route count and webhook status in one pass.
+validity, DB connectivity, base tables, route count and webhook status in one pass. It also warns when a
+handler is registered for an update type Telegram isn't sending (`chat_member`, reactions, ... missing
+from `allowed_updates`) — the usual reason a handler "does nothing".
 
 **After bumping `devflow/telegram-bot` in an existing project, run `devflow upgrade`** — it creates
 any scaffold files/directories a newer library version expects that this project predates (e.g.
@@ -570,9 +587,18 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
 - **Testing**: `Bot::fake()` works through the route — `$this->postJson('/telegram/webhook', $update)`
   dispatches to the fake (which has no `webhook_secret`, so no header is needed). Register handlers
   *after* `Bot::fake()` using `Bot::` — `TelegramBot::` still points at the real container instance.
-- **Artisan commands**: `php artisan telegram:set-webhook <url>` (sends `TELEGRAM_WEBHOOK_SECRET` as the
-  secret unless `--secret=` overrides it), `telegram:delete-webhook`, `telegram:webhook-info`. `set-webhook` takes `--allowed-updates=message,chat_member` (or `all`). API
-  failures print one error line and exit non-zero. Need `illuminate/console` (always present in Laravel).
+- **Artisan commands**:
+  - `telegram:set-webhook [url]` — `url` defaults to the `telegram.webhook` route under `APP_URL`. Sends
+    `TELEGRAM_WEBHOOK_SECRET` as the secret unless `--secret=` overrides it. Also `--allowed-updates=`
+    (`message,chat_member`, `all`, `default`), `--max-connections=`, `--ip-address=`, `--certificate=`,
+    `--drop-pending`.
+  - `telegram:poll [--drop-pending]` — long-polling for local dev, no public URL needed. If a webhook is
+    registered Telegram answers 409; run `telegram:delete-webhook` first.
+  - `telegram:broadcast [--rate=25]` — sends pending `telegram_broadcasts` rows; schedule it:
+    `Schedule::command('telegram:broadcast')->everyMinute()->withoutOverlapping();`
+  - `telegram:delete-webhook`, `telegram:webhook-info`.
+
+  API failures print one error line and exit non-zero. Need `illuminate/console` (always present in Laravel).
 - **Supported**: Laravel 10 – 13 (Guzzle 7 and 8).
 
 ---

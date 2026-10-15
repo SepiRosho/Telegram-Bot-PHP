@@ -3,7 +3,7 @@
 namespace Devflow\TelegramBot\Console\Commands;
 
 use Devflow\TelegramBot\Bot;
-use Devflow\TelegramBot\Support\AllowedUpdates;
+use Devflow\TelegramBot\Support\WebhookOptions;
 
 /**
  * Webhook management from the standalone CLI. `devflow poll` tells you to
@@ -44,50 +44,69 @@ class WebhookCommand
         }
     }
 
+    /** Options that take a value, as `--name=value` or `--name value`. */
+    private const VALUE_OPTIONS = ['allowed-updates', 'secret', 'max-connections', 'ip-address', 'certificate'];
+
+    /** Flags with no value (the long spelling mirrors setWebhook's own parameter). */
+    private const FLAGS = ['drop-pending', 'drop-pending-updates'];
+
     private function set(array $args): void
     {
         $url = null;
-        $allowedSpec = null;
+        $values = [];
+        $flags = [];
 
-        // "--allowed-updates=a,b" or "--allowed-updates a,b"; the first bare argument is the URL.
+        // The first bare argument is the URL; flags may come before or after it.
         for ($i = 0; $i < count($args); $i++) {
             $arg = $args[$i];
-            if (str_starts_with($arg, '--allowed-updates=')) {
-                $allowedSpec = substr($arg, strlen('--allowed-updates='));
-            } elseif ($arg === '--allowed-updates') {
-                $allowedSpec = $args[++$i] ?? '';
-            } elseif (str_starts_with($arg, '-')) {
+
+            if (!str_starts_with($arg, '--')) {
+                $url ??= $arg;
+                continue;
+            }
+
+            $name = substr($arg, 2);
+            $inline = null;
+            if (str_contains($name, '=')) {
+                [$name, $inline] = explode('=', $name, 2);
+            }
+
+            if (in_array($name, self::VALUE_OPTIONS, true)) {
+                $values[$name] = $inline ?? ($args[++$i] ?? '');
+            } elseif (in_array($name, self::FLAGS, true)) {
+                $flags[] = $name;
+            } else {
                 $this->error("Unknown option: {$arg}");
                 exit(1);
-            } elseif ($url === null) {
-                $url = $arg;
             }
         }
 
         if (!$url) {
-            $this->error('Usage: vendor/bin/devflow webhook:set <https-url> [--allowed-updates=message,chat_member,...|all|default]');
+            $this->error('Usage: vendor/bin/devflow webhook:set <https-url> [options]');
+            $this->line('  --allowed-updates=message,chat_member,...|all|default');
+            $this->line('  --secret=TOKEN          (defaults to WEBHOOK_SECRET from .env)');
+            $this->line('  --max-connections=40    --ip-address=1.2.3.4');
+            $this->line('  --certificate=path/to/public.pem    (self-signed server)');
+            $this->line('  --drop-pending');
             exit(1);
         }
 
-        $allowed = AllowedUpdates::parse($allowedSpec ?: Bot::getInstance()->config('allowed_updates'));
+        $secret = $values['secret'] ?? ($_ENV['WEBHOOK_SECRET'] ?? getenv('WEBHOOK_SECRET') ?: null);
 
-        $options = [];
-        $secret = $_ENV['WEBHOOK_SECRET'] ?? getenv('WEBHOOK_SECRET') ?: null;
-        if (!empty($secret)) {
-            $options['secret_token'] = $secret;
-        }
-        if ($allowed !== null) {
-            $options['allowed_updates'] = $allowed;
-        }
+        $options = WebhookOptions::build([
+            'secret'          => $secret,
+            'allowed_updates' => ($values['allowed-updates'] ?? '') ?: Bot::getInstance()->config('allowed_updates'),
+            'max_connections' => $values['max-connections'] ?? null,
+            'ip_address'      => $values['ip-address'] ?? null,
+            'certificate'     => $values['certificate'] ?? null,
+            'drop_pending'    => $flags !== [],
+        ]);
 
         Bot::setWebhook($url, $options);
 
         $this->success("Webhook set to {$url}");
-        if (isset($options['secret_token'])) {
-            $this->line('  Using WEBHOOK_SECRET from .env as secret_token.');
-        }
-        if ($allowed !== null) {
-            $this->line('  Allowed updates: ' . ($allowed === [] ? '(Telegram default)' : implode(', ', $allowed)));
+        foreach (WebhookOptions::describe($options) as $line) {
+            $this->line('  ' . $line);
         }
     }
 

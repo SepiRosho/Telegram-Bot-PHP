@@ -281,4 +281,23 @@ class PollingLoopTest extends TestCase
             $this->assertSame([], $http->calls());
         }
     }
+
+    public function test_a_missing_token_stops_polling_instead_of_retrying_forever(): void
+    {
+        // The Laravel provider builds the bot with a client that throws on first
+        // use when no token is set, so that failure now surfaces inside the loop.
+        $http = new \Devflow\TelegramBot\Api\MissingTokenHttpClient('TELEGRAM_BOT_TOKEN');
+        $bot  = new BotInstance('missing-token', [], $http);
+
+        $reported = [];
+        try {
+            $bot->runPolling(function (\Throwable $e, int $retryIn = 0) use (&$reported): void {
+                $reported[] = [$e, $retryIn];
+            });
+            $this->fail('Expected MissingTokenException.');
+        } catch (\Devflow\TelegramBot\Exceptions\MissingTokenException $e) {
+            $this->assertCount(1, $reported);
+            $this->assertSame(0, $reported[0][1], 'no backoff — there is nothing to wait for');
+        }
+    }
 }

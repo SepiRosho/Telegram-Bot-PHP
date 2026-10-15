@@ -134,4 +134,53 @@ class WebhookCommandTest extends TestCase
         $this->assertStringContainsString('Allowed updates:', $out);
         $this->assertStringContainsString('message, chat_member', $out);
     }
+
+    public function test_every_set_webhook_option_is_accepted_and_sent(): void
+    {
+        $this->bootstrapWith();
+        $cert = $this->dir . '/public.pem';
+        file_put_contents($cert, "-----BEGIN CERTIFICATE-----\n");
+
+        try {
+            $this->runCommand([
+                'https://example.com/hook',
+                '--secret=s3cret_-1',
+                '--max-connections', '25',
+                '--ip-address=203.0.113.9',
+                '--certificate=' . $cert,
+                '--drop-pending',
+            ]);
+
+            $params = $this->setWebhookParams();
+            $this->assertSame('s3cret_-1', $params['secret_token']);
+            $this->assertSame(25, $params['max_connections']);
+            $this->assertSame('203.0.113.9', $params['ip_address']);
+            $this->assertTrue($params['drop_pending_updates']);
+            $this->assertInstanceOf(\Devflow\TelegramBot\Api\InputFile::class, $params['certificate']);
+        } finally {
+            unlink($cert);
+        }
+    }
+
+    public function test_the_secret_flag_beats_the_env_var(): void
+    {
+        $this->bootstrapWith();
+        putenv('WEBHOOK_SECRET=from_env');
+
+        try {
+            $this->runCommand(['https://example.com/hook', '--secret=from_flag']);
+            $this->assertSame('from_flag', $this->setWebhookParams()['secret_token']);
+        } finally {
+            putenv('WEBHOOK_SECRET');
+        }
+    }
+
+    public function test_the_long_drop_pending_spelling_works_too(): void
+    {
+        $this->bootstrapWith();
+
+        $this->runCommand(['https://example.com/hook', '--drop-pending-updates']);
+
+        $this->assertTrue($this->setWebhookParams()['drop_pending_updates']);
+    }
 }

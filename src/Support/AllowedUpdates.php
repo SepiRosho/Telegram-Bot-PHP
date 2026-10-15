@@ -43,6 +43,51 @@ final class AllowedUpdates
         'managed_bot',
     ];
 
+    /** Not delivered unless requested by name (Telegram's documented default). */
+    public const OFF_BY_DEFAULT = ['chat_member', 'message_reaction', 'message_reaction_count'];
+
+    /** Route types (see Router) that are all just a `message` update. */
+    private const MESSAGE_ROUTES = [
+        'command', 'unknown_command', 'text', 'message', 'photo', 'document', 'video', 'voice', 'audio',
+        'video_note', 'sticker', 'animation', 'location', 'contact', 'venue', 'new_chat_members',
+        'left_chat_member', 'successful_payment', 'web_app_data', 'step',
+    ];
+
+    /**
+     * The update types Telegram has to deliver for these route types to ever fire.
+     * `update` (the catch-all) asks for nothing in particular, so it adds nothing.
+     *
+     * @param  string[] $routeTypes
+     * @return string[]
+     */
+    public static function requiredBy(array $routeTypes): array
+    {
+        $needed = [];
+        foreach (array_unique($routeTypes) as $type) {
+            if (in_array($type, self::MESSAGE_ROUTES, true)) {
+                $needed[] = 'message';
+            } elseif (in_array($type, self::ALL, true)) {
+                $needed[] = $type;
+            }
+        }
+
+        return array_values(array_unique($needed));
+    }
+
+    /**
+     * What a stored allowed_updates list means in practice: [] is Telegram's
+     * default set, everything except OFF_BY_DEFAULT.
+     *
+     * @param  string[]|null $allowed
+     * @return string[]
+     */
+    public static function effective(?array $allowed): array
+    {
+        return $allowed === null || $allowed === []
+            ? array_values(array_diff(self::ALL, self::OFF_BY_DEFAULT))
+            : $allowed;
+    }
+
     /**
      * @param string|array|null $spec
      *   null / '' / []   → null: leave it out, Telegram keeps its previous setting

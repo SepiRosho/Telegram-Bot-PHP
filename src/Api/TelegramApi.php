@@ -399,6 +399,44 @@ class TelegramApi
         return $this->http->post('getFile', ['file_id' => $fileId]);
     }
 
+    /**
+     * The bytes of a file the bot can see (photo, document, voice, ...): getFile
+     * then the download, in one call. Cloud Bot API servers cap this at 20 MB;
+     * point 'api_url' at a self-hosted server to lift it.
+     *
+     * Pass the file_id of the size you want — for a photo, the last (largest)
+     * entry of $message->photo.
+     */
+    public function fileContents(string $fileId): string
+    {
+        if (!$this->http instanceof FileDownloaderInterface) {
+            throw new \LogicException(get_class($this->http) . ' cannot download files.');
+        }
+
+        $path = $this->getFile($fileId)['file_path'] ?? null;
+        if ($path === null || $path === '') {
+            throw new \Devflow\TelegramBot\Exceptions\TelegramApiException('Telegram returned no file_path (file too big to download?)', 400);
+        }
+
+        return $this->http->download($path);
+    }
+
+    /** Like fileContents(), saved to $destination (parent folders are created). Returns $destination. */
+    public function downloadFile(string $fileId, string $destination): string
+    {
+        $contents = $this->fileContents($fileId);
+
+        $dir = dirname($destination);
+        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+            throw new \RuntimeException("Cannot create directory: {$dir}");
+        }
+        if (file_put_contents($destination, $contents) === false) {
+            throw new \RuntimeException("Cannot write file: {$destination}");
+        }
+
+        return $destination;
+    }
+
     public function getUserProfilePhotos(int $userId, array $options = []): array
     {
         return $this->http->post('getUserProfilePhotos', array_merge([

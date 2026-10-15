@@ -51,6 +51,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Broadcast Rate
+    |--------------------------------------------------------------------------
+    | Messages per second for telegram:broadcast (1-30). Telegram's hard limit
+    | is about 30/s, so the default of 25 leaves headroom.
+    */
+    'broadcast_rate' => env('TELEGRAM_BROADCAST_RATE', 25),
+
+    /*
+    |--------------------------------------------------------------------------
     | Webhook Middleware
     |--------------------------------------------------------------------------
     | The webhook route is registered outside the "web"/"api" groups, so it has
@@ -96,6 +105,13 @@ return [
     | retry_after; 'retry_transient' extends that to 5xx / network failures.
     */
     'proxy' => env('TELEGRAM_PROXY'),
+
+    /*
+    | Base URL of a self-hosted Bot API server (null = https://api.telegram.org),
+    | and whether to use Telegram's test environment. See docs/14-files-and-limits.md.
+    */
+    'api_url' => env('TELEGRAM_API_URL'),
+    'test_environment' => env('TELEGRAM_TEST_ENVIRONMENT', false),
     'max_retries' => 2,
     'retry_transient' => false,
 ];

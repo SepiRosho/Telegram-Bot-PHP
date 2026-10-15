@@ -5,6 +5,7 @@ namespace Devflow\TelegramBot\Console\Commands;
 use Devflow\TelegramBot\Bot;
 use Devflow\TelegramBot\Console\Commands\Concerns\BootsProject;
 use Devflow\TelegramBot\Exceptions\TelegramApiException;
+use Devflow\TelegramBot\Support\AllowedUpdates;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 /**
@@ -219,8 +220,54 @@ class DoctorCommand
             $this->fail("Telegram's last delivery failed ({$when}): {$info['last_error_message']}");
         }
 
+        $this->checkAllowedUpdates($info, $url);
+
         if (($url !== '') && empty($info['has_custom_certificate']) && !str_starts_with($url, 'https://')) {
             $this->fail('Webhook URL is not HTTPS — Telegram requires TLS');
+        }
+    }
+
+    /**
+     * Telegram does not deliver chat_member, message_reaction or
+     * message_reaction_count unless asked for by name, and a handler for one of
+     * them registered without that simply never runs — no error anywhere. So
+     * compare what the routes listen for with what Telegram is sending.
+     */
+    private function checkAllowedUpdates(array $info, string $webhookUrl): void
+    {
+        $bot    = Bot::getInstance();
+        $needed = AllowedUpdates::requiredBy(array_map(fn($r) => $r->type, $bot->router()->routes()));
+
+        if ($needed === []) {
+            return;
+        }
+
+        // With a webhook, Telegram reports its stored list. Without one the
+        // bot is polling, so the config is what getUpdates sends.
+        try {
+            $stored = $webhookUrl !== ''
+                ? ($info['allowed_updates'] ?? [])
+                : AllowedUpdates::parse($bot->config('allowed_updates'));
+        } catch (\InvalidArgumentException $e) {
+            $this->fail('allowed_updates in the bot config is invalid — ' . $e->getMessage());
+            return;
+        }
+
+        $effective = AllowedUpdates::effective($stored);
+        $missing   = array_values(array_diff($needed, $effective));
+
+        if ($missing === []) {
+            $this->pass('allowed_updates covers every registered route');
+            return;
+        }
+
+        $suggest = implode(',', array_unique(array_merge($effective, $missing)));
+        $fix     = $webhookUrl !== ''
+            ? "re-run `webhook:set <url> --allowed-updates={$suggest}`"
+            : "set 'allowed_updates' => '{$suggest}' in bootstrap/app.php";
+
+        foreach ($missing as $type) {
+            $this->warn("A route listens for `{$type}` updates but Telegram is not sending them — it will never fire. To fix: {$fix}");
         }
     }
 
