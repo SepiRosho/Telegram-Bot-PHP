@@ -154,4 +154,51 @@ class UserRepositoryTest extends TestCase
         $regular = $repo->findOrCreateByUpdate(UpdateFactory::command('start', userId: 123));
         $this->assertSame('user', $regular->role);
     }
+
+    public function test_losing_a_first_contact_race_does_not_crash_or_duplicate_the_user(): void
+    {
+        // Two updates from a brand-new user processed at once: both SELECT (no
+        // row), both INSERT, the second hits the unique telegram_id. The
+        // competing insert is simulated from a `creating` hook, i.e. in the
+        // gap between firstOrCreate's SELECT and its INSERT. Eloquent's
+        // firstOrCreate recovers via createOrFirst; this pins that the
+        // repository keeps relying on it rather than a bare select-then-insert.
+        RacingUser::$raceOnce = true;
+        $repo = new UserRepository(['user_model' => RacingUser::class]);
+
+        $user = $repo->findOrCreateByUpdate(UpdateFactory::command('start', userId: 200));
+
+        $this->assertSame(200, (int) $user->telegram_id);
+        $this->assertSame(1, Capsule::table('telegram_users')->where('telegram_id', 200)->count());
+        $this->assertSame('Test', Capsule::table('telegram_users')->where('telegram_id', 200)->value('first_name'), 'the loser then updates the winner\'s row with its own data');
+    }
+
+    public function test_a_genuine_database_error_is_not_swallowed(): void
+    {
+        Capsule::schema()->drop('telegram_users');
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        (new UserRepository())->findOrCreateByUpdate(UpdateFactory::command('start'));
+    }
+}
+
+/** A user model that loses the insert race exactly once. */
+class RacingUser extends \Devflow\TelegramBot\Database\Models\TelegramUser
+{
+    public static bool $raceOnce = false;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model): void {
+            if (self::$raceOnce) {
+                self::$raceOnce = false;
+                Capsule::table('telegram_users')->insert([
+                    'telegram_id' => $model->telegram_id,
+                    'chat_id'     => $model->chat_id,
+                    'first_name'  => 'Winner',
+                ]);
+            }
+        });
+    }
 }
