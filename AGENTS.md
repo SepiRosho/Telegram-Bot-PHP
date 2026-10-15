@@ -94,6 +94,7 @@ logs/                    Daily log files
 | `database` | bool | `false` | Enables `$ctx->user()`, flow state, auto-registration. Required by `onStep()`. |
 | `allowed_chat_types` | ?array | `null` | e.g. `['private']`. `null` = no filtering. See §7. |
 | `allowed_updates` | string\|array\|null | `null` | Update types Telegram delivers: array, comma list, `'all'` or `'default'`. **Telegram omits `chat_member`, `message_reaction` and `message_reaction_count` unless named**, so `onChatMember()`/`onMessageReaction()` never fire without it. Used by `webhook:set` / `telegram:set-webhook` (override with `--allowed-updates=`) and `devflow poll`. `null` leaves Telegram's stored setting untouched. |
+| `respond_early` | bool | `false` | `run()` sends Telegram its `200` as soon as the secret and body check out (`fastcgi_finish_request`, or an empty `Connection: close` reply where that doesn't exist) and runs the handlers afterwards. Telegram redelivers anything unanswered within its timeout, and a handler can outlast it — a 429 retry alone may sleep up to `max_retry_after`. A bad secret / body is still answered `403`/`400` immediately. |
 | `webhook_secret` | ?string | `null` | Validates `X-Telegram-Bot-Api-Secret-Token`. Must match `setWebhook`'s `secret_token`. |
 | `proxy` | ?string | `null` | `http://…` or `socks5://host:1080`. |
 | `lang_path` | ?string | `null` | Directory of `{locale}.php` files. |
@@ -583,6 +584,8 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
   — not `run()`, which reads `php://input`/`$_SERVER` and so breaks under feature tests and Octane.
 - **Webhook responses**: bad/missing secret → `403`, unparseable body → `400`, anything a handler throws
   → `200` (Telegram would otherwise redeliver forever) after being passed to Laravel's `report()`.
+  With `respond_early` (env `TELEGRAM_RESPOND_EARLY`) the handlers run in a terminating callback,
+  i.e. after the response has gone out under php-fpm.
   Expected Telegram errors (blocked user, stale callback) are absorbed silently as in standalone (§17).
 - **Testing**: `Bot::fake()` works through the route — `$this->postJson('/telegram/webhook', $update)`
   dispatches to the fake (which has no `webhook_secret`, so no header is needed). Register handlers
@@ -705,6 +708,9 @@ never warned about.
   config key, or a new optional config/command worth telling an upgrading developer about, add
   `Console\Upgrades\<version>.php` (see §14's `upgrade` entry and
   [docs/17-upgrading.md](docs/17-upgrading.md#extending-the-checklist-contributing-to-the-library))
-  in the same commit as the version bump — not a follow-up. `devflow upgrade` only knows what's in
+  in the same commit as the version bump — not a follow-up. A new config key or `.env` var also goes
+  into the `NewProjectCommand` templates, so fresh projects get it and `upgrade` gets it for old ones
+  (`UpgradeNewestStepsTest` fails if a fresh project would come out of `upgrade` with work left).
+  `devflow upgrade` only knows what's in
   that directory; a version with real scaffold impact and no file there silently gives an upgrading
   project no signal at all.

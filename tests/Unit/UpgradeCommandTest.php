@@ -178,8 +178,9 @@ class UpgradeCommandTest extends TestCase
 
     public function test_a_fully_wired_bootstrap_reports_every_marker_as_already_satisfied(): void
     {
-        file_put_contents($this->dir . '/.env', "BOT_TOKEN=abc\nADMIN_CHAT_ID=1\nLANGUAGE_CODE=auto\nLANG_AUTO_FALLBACK=false\n");
-        file_put_contents($this->dir . '/.env.example', "BOT_TOKEN=\nADMIN_CHAT_ID=\nLANGUAGE_CODE=auto\nLANG_AUTO_FALLBACK=false\n");
+        $env = "LANGUAGE_CODE=auto\nLANG_AUTO_FALLBACK=false\nALLOWED_UPDATES=\nRESPOND_EARLY=false\n";
+        file_put_contents($this->dir . '/.env', "BOT_TOKEN=abc\nADMIN_CHAT_ID=1\n" . $env);
+        file_put_contents($this->dir . '/.env.example', "BOT_TOKEN=\nADMIN_CHAT_ID=\n" . $env);
         mkdir($this->dir . '/app/Keyboards', 0755, true);
         file_put_contents($this->dir . '/app/Emojis.php', "<?php\nreturn [];\n");
 
@@ -193,8 +194,12 @@ class UpgradeCommandTest extends TestCase
             'language_code' => env('LANGUAGE_CODE', 'auto'),
             'lang_auto_fallback' => true,
             'user_defaults' => fn ($update) => [],
+            'allowed_updates' => env('ALLOWED_UPDATES') ?: null,
+            'respond_early' => false,
         ]);
         PHP);
+        mkdir($this->dir . '/public', 0755, true);
+        file_put_contents($this->dir . '/public/webhook.php', "<?php\ntry { Bot::run(); } catch (\\Devflow\\TelegramBot\\Exceptions\\WebhookException \$e) {} catch (\\Throwable \$e) {}\n");
 
         ob_start();
         (new UpgradeCommand())->execute([]);

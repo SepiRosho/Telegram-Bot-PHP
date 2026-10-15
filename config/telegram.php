@@ -60,6 +60,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Respond Early
+    |--------------------------------------------------------------------------
+    | Send Telegram its 200 first and run your handlers afterwards (as a
+    | terminating callback, i.e. after the response under php-fpm). Telegram
+    | redelivers any update not answered within its timeout, so enable this if
+    | handlers can run long. Secret / payload errors (403/400) are still answered
+    | immediately. A handler failure is reported either way.
+    */
+    'respond_early' => env('TELEGRAM_RESPOND_EARLY', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Webhook Middleware
     |--------------------------------------------------------------------------
     | The webhook route is registered outside the "web"/"api" groups, so it has

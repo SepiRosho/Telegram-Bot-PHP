@@ -28,7 +28,7 @@ vendor/bin/devflow upgrade --dry-run
 The checklist is organized by the library version that introduced each item, and every entry
 prints with a `[x.y.z]` tag saying which version it's from — the header line also names the highest
 version the installed library's checklist covers (`checking this project's scaffold against
-v1.17.0`). There's no cutoff: a project on any older version runs the *entire* history in one pass
+v1.22.0`). There's no cutoff: a project on any older version runs the *entire* history in one pass
 and converges to the same end state, regardless of which version it started from. Every item is
 independent and safe to re-run as many times as you like — an already-satisfied one just reports OK
 and does nothing.
@@ -40,8 +40,9 @@ Three kinds of entry:
 - `app/Keyboards/` — created if missing (target directory for `make:keyboard`, v1.15.0).
 - `app/Emojis.php` — created with an empty registry if missing (consumed by `Support\Emoji`,
   v1.15.0). If you already have one, it's left untouched.
-- `LANGUAGE_CODE` (v1.14.0) / `LANG_AUTO_FALLBACK` (v1.15.0) — appended to `.env` and
-  `.env.example` if missing, without touching anything else in the file.
+- `LANGUAGE_CODE` (v1.14.0) / `LANG_AUTO_FALLBACK` (v1.15.0) / `ALLOWED_UPDATES` (v1.19.0) /
+  `RESPOND_EARLY` (v1.22.0) — appended to `.env` and `.env.example` if missing, without touching
+  anything else in the file.
 - `.ai/api.json` — regenerated every run, independent of version. It's a generated, reflection-built
   file, so refreshing it is routine maintenance rather than a "fix."
 
@@ -56,6 +57,13 @@ any of the following config keys or wiring are missing, it prints the exact snip
   (v1.15.0) — see [12-i18n.md](12-i18n.md#falling-back-across-every-shipped-language).
 - `Emoji::registerMany(require __DIR__ . '/../app/Emojis.php');` (v1.15.0) — see
   [16-premium-emoji.md](16-premium-emoji.md).
+- `'allowed_updates' => env('ALLOWED_UPDATES') ?: null` (v1.19.0) — which update types Telegram
+  delivers. Without it `chat_member` / reaction handlers never fire.
+- `'respond_early' => filter_var(env('RESPOND_EARLY', false), FILTER_VALIDATE_BOOLEAN)` (v1.22.0) —
+  answer Telegram before running handlers.
+- `public/webhook.php` (v1.22.0) — a `catch (WebhookException $e)` ahead of the generic
+  `catch (\Throwable $e)`, so a wrong secret or junk request is logged quietly instead of paging
+  `ADMIN_CHAT_ID` with a "Bot crash" alert. Another file `upgrade` never edits for you.
 
 After pasting those in, run `vendor/bin/devflow doctor` to confirm `bootstrap/app.php` still loads
 without errors.
@@ -67,6 +75,18 @@ mean missing what's new. These always print and are never counted as a problem:
 - v1.16.0 — `make:handler`, `migrate:rollback` (new commands, nothing to wire).
 - v1.17.0 — `retry_transient`, `retry_jitter`, `retry_strategy`, `on_retry`, `sleeper` (new optional
   `Bot::init()` config, see [14-files-and-limits.md](14-files-and-limits.md)).
+- v1.18.0 — `telegram_users.referral_code` is now unique for *new* databases; yours keeps its old
+  definition (with the one-line `ALTER` to add the index if you want it).
+- v1.20.0 — replies now go into the forum topic / business connection of the message being answered
+  (a behaviour change, with how to opt out per call); new content routes; `Bot::fake()->dispatch()`
+  now applies the config you gave it.
+- v1.21.0 — `api_url` / `test_environment` config, `fileContents()` / `downloadFile()`, the extra
+  `webhook:set` options, and the `doctor` check for `allowed_updates`.
+
+Laravel projects don't use `devflow upgrade` (there is no scaffold to update). After a
+`composer update`, re-publish nothing: new config keys fall back to the package defaults through
+`mergeConfigFrom`, and a migration you published earlier keeps its file name (re-running
+`vendor:publish --tag=telegram-migrations` never creates a second copy).
 
 ---
 

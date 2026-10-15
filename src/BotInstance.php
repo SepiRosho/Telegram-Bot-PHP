@@ -451,11 +451,16 @@ class BotInstance
      * Standalone entry point: reads the request from PHP's globals. A framework
      * with its own request object (Laravel, Octane, tests) should call
      * handleWebhook() with the body and header it already has instead.
+     *
+     * With the `respond_early` config the 200 is sent to Telegram as soon as the
+     * request is known to be genuine, and the handlers run afterwards. Telegram
+     * redelivers anything not answered within its timeout, and a handler can
+     * easily outlast it (a 429 retry alone may sleep up to `max_retry_after`).
      */
     public function run(): void
     {
         try {
-            $this->handleWebhook(
+            $update = $this->parseWebhook(
                 (string) file_get_contents('php://input'),
                 $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null,
             );
@@ -465,6 +470,42 @@ class BotInstance
             http_response_code($e->statusCode());
             throw $e;
         }
+
+        if ($this->config['respond_early'] ?? false) {
+            $this->finishResponse();
+        }
+
+        $this->processUpdate($update);
+    }
+
+    /**
+     * Answer the request now and keep the script running. No-op on the CLI,
+     * where there is no client to answer.
+     */
+    private function finishResponse(): void
+    {
+        if (PHP_SAPI === 'cli') {
+            return;
+        }
+
+        ignore_user_abort(true);
+        http_response_code(200);
+
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+            return;
+        }
+
+        // mod_php, the built-in server, ...: declare the (empty) body complete
+        // and push everything out, so the client stops waiting.
+        if (!headers_sent()) {
+            header('Connection: close');
+            header('Content-Length: 0');
+        }
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        flush();
     }
 
     /**
@@ -476,6 +517,18 @@ class BotInstance
      * @throws WebhookException 403 for a bad secret, 400 for a malformed body.
      */
     public function handleWebhook(string $payload, ?string $secretToken = null): void
+    {
+        $this->processUpdate($this->parseWebhook($payload, $secretToken));
+    }
+
+    /**
+     * The checking half of handleWebhook(): authenticate and parse one delivery
+     * without running any handler. A caller that wants to answer Telegram first
+     * (see `respond_early`) calls this, responds, then calls processUpdate().
+     *
+     * @throws WebhookException 403 for a bad secret, 400 for a malformed body.
+     */
+    public function parseWebhook(string $payload, ?string $secretToken = null): Update
     {
         $webhookSecret = $this->config['webhook_secret'] ?? null;
         if ($webhookSecret !== null && $webhookSecret !== '') {
@@ -498,8 +551,12 @@ class BotInstance
             throw new WebhookException('Invalid update payload: missing update_id.');
         }
 
-        $update = Update::fromArray($data);
+        return Update::fromArray($data);
+    }
 
+    /** The running half of handleWebhook(): load the user, dispatch to the routes. */
+    public function processUpdate(Update $update): void
+    {
         $userRepository = null;
         if ($this->config['database'] ?? false) {
             $userRepository = new \Devflow\TelegramBot\Database\UserRepository($this->config);

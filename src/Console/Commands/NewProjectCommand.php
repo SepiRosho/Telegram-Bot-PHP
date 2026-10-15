@@ -177,6 +177,16 @@ class NewProjectCommand
         # Pass this same value to setWebhook as the secret_token option.
         WEBHOOK_SECRET=
 
+        # Which update types Telegram delivers, e.g. message,callback_query,chat_member
+        # ("all" = everything). Telegram does NOT send chat_member or message_reaction
+        # unless listed, so onChatMember()/onMessageReaction() stay silent without this.
+        # Empty = keep whatever Telegram has stored. Applied by `webhook:set` and `poll`.
+        ALLOWED_UPDATES=
+
+        # true = answer Telegram first and run handlers afterwards, so a slow handler
+        # cannot hit Telegram's delivery timeout and be redelivered.
+        RESPOND_EARLY=false
+
         # Optional: HTTP or SOCKS5 proxy URL (e.g. http://user:pass@host:port or socks5://host:port).
         # Useful in countries where Telegram's API is blocked.
         PROXY_URL=
@@ -283,6 +293,8 @@ class NewProjectCommand
         // ─── Bot init ──────────────────────────────────────────────────────────
         // webhook_secret: validates the X-Telegram-Bot-Api-Secret-Token header (set WEBHOOK_SECRET in .env).
         // proxy:          HTTP or SOCKS5 proxy URL for countries where Telegram is blocked (set PROXY_URL in .env).
+        // allowed_updates: update types Telegram delivers (set ALLOWED_UPDATES in .env; "all" for everything).
+        // respond_early:  send Telegram its 200 before running handlers (set RESPOND_EARLY=true in .env).
         // ─── i18n ──────────────────────────────────────────────────────────────
         // lang_path: directory of per-locale array files (lang/en.php, lang/fa.php, ...).
         // Use $ctx->t('key', ['name' => ...]) in handlers; $ctx->locale() resolves
@@ -311,6 +323,8 @@ class NewProjectCommand
             'database'           => true,
             'webhook_secret'     => env('WEBHOOK_SECRET') ?: null,
             'proxy'              => env('PROXY_URL') ?: null,
+            'allowed_updates'    => env('ALLOWED_UPDATES') ?: null,
+            'respond_early'      => filter_var(env('RESPOND_EARLY', false), FILTER_VALIDATE_BOOLEAN),
             'lang_path'          => __DIR__ . '/../lang',
             'default_locale'     => 'en',
             'language_code'      => env('LANGUAGE_CODE', 'auto'),
@@ -359,6 +373,10 @@ class NewProjectCommand
 
         try {
             \Devflow\TelegramBot\Bot::run();
+        } catch (\Devflow\TelegramBot\Exceptions\WebhookException $e) {
+            // Not a delivery from Telegram (wrong secret, junk body): run() has already set
+            // 403/400. Log it quietly — scanners hitting this URL are not a bot crash.
+            saveLog($e->getMessage(), 'WARNING');
         } catch (\Throwable $e) {
             // Write the full stack trace to the daily log file.
             saveLog($e->getMessage() . "\n" . $e->getTraceAsString(), 'ERROR');
