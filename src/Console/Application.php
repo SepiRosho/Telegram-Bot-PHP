@@ -26,7 +26,7 @@ use Devflow\TelegramBot\Console\Commands\WebhookCommand;
 
 class Application
 {
-    private const VERSION = '1.18.0';
+    private const VERSION = '1.19.0';
 
     private array $commands = [
         'new'               => NewProjectCommand::class,
@@ -111,7 +111,7 @@ class Application
     \033[32mmigrate\033[0m                       Run pending database migrations
     \033[32mmigrate:status\033[0m                Show which migrations have run
     \033[32mmigrate:rollback\033[0m [--step=N|--all]  Undo the most recent migration batch
-    \033[32mwebhook:set\033[0m <https-url>       Register your webhook URL with Telegram
+    \033[32mwebhook:set\033[0m <https-url> [--allowed-updates=a,b|all]  Register your webhook URL with Telegram
     \033[32mwebhook:delete\033[0m                Remove the webhook (required before polling)
     \033[32mwebhook:info\033[0m                  Show the currently registered webhook
 

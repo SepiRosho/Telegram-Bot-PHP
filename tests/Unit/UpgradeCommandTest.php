@@ -151,7 +151,13 @@ class UpgradeCommandTest extends TestCase
         (new UpgradeCommand())->execute([]);
         $output = ob_get_clean();
 
-        $this->assertStringContainsString('against v1.17.0', $output);
+        // The newest file in Upgrades/ — derived, so a release that adds a step
+        // file doesn't also need this line edited.
+        $versions = array_map(fn($f) => basename($f, '.php'), glob(__DIR__ . '/../../src/Console/Upgrades/*.php'));
+        $versions = array_filter($versions, fn($v) => preg_match('/^\d+\.\d+\.\d+$/', $v));
+        usort($versions, 'version_compare');
+
+        $this->assertStringContainsString('against v' . end($versions), $output);
     }
 
     public function test_a_second_run_reports_the_filesystem_checks_as_already_satisfied(): void

@@ -1,7 +1,7 @@
 {
     "library": "devflow/telegram-bot",
-    "version": "1.18.0",
-    "generated_at": "2026-10-08T20:23:26+00:00",
+    "version": "1.19.0",
+    "generated_at": "2026-10-15T07:29:41+00:00",
     "generator": "vendor/bin/devflow ai:manifest",
     "rules": [
         "Every $options array (including reply_markup) must be a PHP array. Never call json_encode() yourself — HttpClient encodes it, and pre-encoding produces a double-encoded value Telegram silently ignores.",

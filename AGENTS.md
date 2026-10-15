@@ -93,6 +93,7 @@ logs/                    Daily log files
 |-----|------|---------|-------|
 | `database` | bool | `false` | Enables `$ctx->user()`, flow state, auto-registration. Required by `onStep()`. |
 | `allowed_chat_types` | ?array | `null` | e.g. `['private']`. `null` = no filtering. See §7. |
+| `allowed_updates` | string\|array\|null | `null` | Update types Telegram delivers: array, comma list, `'all'` or `'default'`. **Telegram omits `chat_member`, `message_reaction` and `message_reaction_count` unless named**, so `onChatMember()`/`onMessageReaction()` never fire without it. Used by `webhook:set` / `telegram:set-webhook` (override with `--allowed-updates=`) and `devflow poll`. `null` leaves Telegram's stored setting untouched. |
 | `webhook_secret` | ?string | `null` | Validates `X-Telegram-Bot-Api-Secret-Token`. Must match `setWebhook`'s `secret_token`. |
 | `proxy` | ?string | `null` | `http://…` or `socks5://host:1080`. |
 | `lang_path` | ?string | `null` | Directory of `{locale}.php` files. |
@@ -453,7 +454,8 @@ vendor/bin/devflow migrate:status          # applied / Pending / Untracked
 vendor/bin/devflow migrate:rollback        # undo the most recent migration batch
 vendor/bin/devflow migrate:rollback --step=2  # undo the 2 most recent batches
 vendor/bin/devflow migrate:rollback --all  # undo every applied migration
-vendor/bin/devflow webhook:set <https-url> # register webhook (sends WEBHOOK_SECRET if set)
+vendor/bin/devflow webhook:set <https-url> [--allowed-updates=message,chat_member|all|default]
+                                               # register webhook (sends WEBHOOK_SECRET if set)
 vendor/bin/devflow webhook:delete
 vendor/bin/devflow webhook:info
 vendor/bin/devflow make:command <Name>     # → app/Commands/
@@ -525,7 +527,8 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
 - **Config**: `config/telegram.php` (publish with `--tag=telegram-config`). The whole array is passed
   to `Bot::init()`, so every key in §1's config table works there; the published file already lists
   `allowed_chat_types` (set `['private']` unless the bot is for groups), `lang_path`,
-  `default_locale`, `user_model`, `proxy`, `max_retries`, `retry_transient` and `webhook_middleware`.
+  `default_locale`, `user_model`, `proxy`, `max_retries`, `retry_transient`, `allowed_updates`
+  (env `TELEGRAM_ALLOWED_UPDATES`) and `webhook_middleware`.
 - **Env vars differ from standalone**: Laravel reads `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`,
   `TELEGRAM_DATABASE`, `TELEGRAM_WEBHOOK_ROUTE`, `TELEGRAM_PROXY`. The standalone scaffold's
   `BOT_TOKEN` / `WEBHOOK_SECRET` mean nothing to Laravel.
@@ -549,7 +552,7 @@ The library is standalone-first; Laravel is an opt-in layer via `Devflow\Telegra
   dispatches to the fake (which has no `webhook_secret`, so no header is needed). Register handlers
   *after* `Bot::fake()` using `Bot::` — `TelegramBot::` still points at the real container instance.
 - **Artisan commands**: `php artisan telegram:set-webhook <url>` (sends `TELEGRAM_WEBHOOK_SECRET` as the
-  secret unless `--secret=` overrides it), `telegram:delete-webhook`, `telegram:webhook-info`. API
+  secret unless `--secret=` overrides it), `telegram:delete-webhook`, `telegram:webhook-info`. `set-webhook` takes `--allowed-updates=message,chat_member` (or `all`). API
   failures print one error line and exit non-zero. Need `illuminate/console` (always present in Laravel).
 - **Supported**: Laravel 10 – 13 (Guzzle 7 and 8).
 

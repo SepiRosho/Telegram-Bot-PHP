@@ -38,6 +38,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Allowed Updates
+    |--------------------------------------------------------------------------
+    | Which update types Telegram delivers. Telegram's default leaves out
+    | chat_member, message_reaction and message_reaction_count, so handlers for
+    | those (onChatMember, onMessageReaction, ...) only fire if listed here.
+    | Comma-separated string or array, e.g. "message,callback_query,chat_member";
+    | "all" = every type; null = leave whatever Telegram has stored untouched.
+    | Used by telegram:set-webhook (override with --allowed-updates=).
+    */
+    'allowed_updates' => env('TELEGRAM_ALLOWED_UPDATES'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Webhook Middleware
     |--------------------------------------------------------------------------
     | The webhook route is registered outside the "web"/"api" groups, so it has

@@ -3,6 +3,7 @@
 namespace Devflow\TelegramBot\Console\Commands;
 
 use Devflow\TelegramBot\Bot;
+use Devflow\TelegramBot\Support\AllowedUpdates;
 
 /**
  * Webhook management from the standalone CLI. `devflow poll` tells you to
@@ -45,17 +46,38 @@ class WebhookCommand
 
     private function set(array $args): void
     {
-        $url = $args[0] ?? null;
+        $url = null;
+        $allowedSpec = null;
+
+        // "--allowed-updates=a,b" or "--allowed-updates a,b"; the first bare argument is the URL.
+        for ($i = 0; $i < count($args); $i++) {
+            $arg = $args[$i];
+            if (str_starts_with($arg, '--allowed-updates=')) {
+                $allowedSpec = substr($arg, strlen('--allowed-updates='));
+            } elseif ($arg === '--allowed-updates') {
+                $allowedSpec = $args[++$i] ?? '';
+            } elseif (str_starts_with($arg, '-')) {
+                $this->error("Unknown option: {$arg}");
+                exit(1);
+            } elseif ($url === null) {
+                $url = $arg;
+            }
+        }
 
         if (!$url) {
-            $this->error('Usage: vendor/bin/devflow webhook:set <https-url>');
+            $this->error('Usage: vendor/bin/devflow webhook:set <https-url> [--allowed-updates=message,chat_member,...|all|default]');
             exit(1);
         }
+
+        $allowed = AllowedUpdates::parse($allowedSpec ?: Bot::getInstance()->config('allowed_updates'));
 
         $options = [];
         $secret = $_ENV['WEBHOOK_SECRET'] ?? getenv('WEBHOOK_SECRET') ?: null;
         if (!empty($secret)) {
             $options['secret_token'] = $secret;
+        }
+        if ($allowed !== null) {
+            $options['allowed_updates'] = $allowed;
         }
 
         Bot::setWebhook($url, $options);
@@ -63,6 +85,9 @@ class WebhookCommand
         $this->success("Webhook set to {$url}");
         if (isset($options['secret_token'])) {
             $this->line('  Using WEBHOOK_SECRET from .env as secret_token.');
+        }
+        if ($allowed !== null) {
+            $this->line('  Allowed updates: ' . ($allowed === [] ? '(Telegram default)' : implode(', ', $allowed)));
         }
     }
 
@@ -84,6 +109,9 @@ class WebhookCommand
 
         $this->line("  URL:               {$info['url']}");
         $this->line('  Pending updates:   ' . ($info['pending_update_count'] ?? 0));
+        if (isset($info['allowed_updates'])) {
+            $this->line('  Allowed updates:   ' . ($info['allowed_updates'] === [] ? '(Telegram default)' : implode(', ', $info['allowed_updates'])));
+        }
         $this->line('  Custom certificate: ' . (($info['has_custom_certificate'] ?? false) ? 'yes' : 'no'));
 
         if (!empty($info['last_error_message'])) {

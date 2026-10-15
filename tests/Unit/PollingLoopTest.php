@@ -235,4 +235,50 @@ class PollingLoopTest extends TestCase
         $this->assertCount(1, $calls, 'no probe call should be made');
         $this->assertArrayNotHasKey('offset', $calls[0]['params']);
     }
+
+    // ─── allowed_updates ──────────────────────────────────────────────────────
+
+    public function test_polling_sends_the_configured_allowed_updates_on_every_fetch(): void
+    {
+        $http = new FakeHttpClient();
+        $http->respond('getUpdates', [$this->update(5, 'hi')]);
+        $http->respond('getUpdates', $this->conflict());
+
+        $bot = new BotInstance('123:token', ['allowed_updates' => 'message,chat_member'], $http);
+
+        $errors = [];
+        $calls  = $this->runUntilConflict($bot, $http, $errors);
+
+        $this->assertSame(['message', 'chat_member'], $calls[0]['params']['allowed_updates']);
+        $this->assertSame(['message', 'chat_member'], $calls[1]['params']['allowed_updates']);
+    }
+
+    public function test_polling_leaves_allowed_updates_out_when_unconfigured(): void
+    {
+        // Telegram keeps the previously stored list when the parameter is
+        // missing; sending [] here would silently reset it to the default set.
+        $http = new FakeHttpClient();
+        $http->respond('getUpdates', $this->conflict());
+
+        $bot = new BotInstance('123:token', [], $http);
+
+        $errors = [];
+        $calls  = $this->runUntilConflict($bot, $http, $errors);
+
+        $this->assertArrayNotHasKey('allowed_updates', $calls[0]['params']);
+    }
+
+    public function test_a_bad_allowed_updates_config_fails_before_any_request(): void
+    {
+        $http = new FakeHttpClient();
+        $bot  = new BotInstance('123:token', ['allowed_updates' => ['mesage']], $http);
+
+        try {
+            $bot->runPolling();
+            $this->fail('Expected InvalidArgumentException.');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('mesage', $e->getMessage());
+            $this->assertSame([], $http->calls());
+        }
+    }
 }

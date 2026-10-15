@@ -10,6 +10,7 @@ use Devflow\TelegramBot\Exceptions\TelegramApiException;
 use Devflow\TelegramBot\Exceptions\WebhookException;
 use Devflow\TelegramBot\Middleware\MiddlewareInterface;
 use Devflow\TelegramBot\Routing\Router;
+use Devflow\TelegramBot\Support\AllowedUpdates;
 use Devflow\TelegramBot\Support\Lang;
 use Devflow\TelegramBot\Support\Log;
 use Devflow\TelegramBot\Types\Update;
@@ -469,6 +470,11 @@ class BotInstance
      */
     public function runPolling(?callable $onError = null, bool $dropPending = false): never
     {
+        // Parsed up front so a typo in the config fails before the loop starts,
+        // not as a Telegram 400 retried every few seconds. null leaves Telegram's
+        // stored setting alone.
+        $allowedUpdates = AllowedUpdates::parse($this->config['allowed_updates'] ?? null);
+
         $offset = $dropPending ? $this->dropPendingUpdates() : 0;
         $failures = 0;
         $userRepository = null;
@@ -481,6 +487,9 @@ class BotInstance
                 $params = ['timeout' => 30, 'limit' => 100];
                 if ($offset > 0) {
                     $params['offset'] = $offset;
+                }
+                if ($allowedUpdates !== null) {
+                    $params['allowed_updates'] = $allowedUpdates;
                 }
 
                 $updates = $this->api->getUpdates($params);
