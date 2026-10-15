@@ -92,6 +92,131 @@ class UpdateFactory
         return self::media(['document' => ['file_id' => 'doc1', 'file_name' => 'file.txt']], $overrides);
     }
 
+    public static function video(array $overrides = []): Update
+    {
+        return self::media(['video' => ['file_id' => 'video1', 'duration' => 5, 'width' => 640, 'height' => 360]], $overrides);
+    }
+
+    public static function audio(array $overrides = []): Update
+    {
+        return self::media(['audio' => ['file_id' => 'audio1', 'duration' => 30]], $overrides);
+    }
+
+    public static function videoNote(array $overrides = []): Update
+    {
+        return self::media(['video_note' => ['file_id' => 'vnote1', 'length' => 240, 'duration' => 3]], $overrides);
+    }
+
+    public static function sticker(array $overrides = []): Update
+    {
+        return self::media(['sticker' => ['file_id' => 'sticker1', 'type' => 'regular', 'width' => 512, 'height' => 512]], $overrides);
+    }
+
+    public static function animation(array $overrides = []): Update
+    {
+        return self::media(['animation' => ['file_id' => 'gif1', 'width' => 320, 'height' => 240, 'duration' => 2]], $overrides);
+    }
+
+    public static function location(float $latitude = 52.52, float $longitude = 13.405, array $overrides = []): Update
+    {
+        return self::media(['location' => ['latitude' => $latitude, 'longitude' => $longitude]], $overrides);
+    }
+
+    public static function contact(string $phoneNumber = '+10000000000', array $overrides = []): Update
+    {
+        return self::media(['contact' => ['phone_number' => $phoneNumber, 'first_name' => 'Contact']], $overrides);
+    }
+
+    /** A Telegram-Stars (or provider) payment confirmation — what onSuccessfulPayment() receives. */
+    public static function successfulPayment(string $payload = 'order-1', int $amount = 100, string $currency = 'XTR', array $overrides = []): Update
+    {
+        return self::media(['successful_payment' => [
+            'currency'                   => $currency,
+            'total_amount'               => $amount,
+            'invoice_payload'            => $payload,
+            'telegram_payment_charge_id' => 'charge-1',
+            'provider_payment_charge_id' => $currency === 'XTR' ? '' : 'provider-1',
+        ]], $overrides);
+    }
+
+    /** @param array[] $users Users who joined, each ['id' => ..., 'first_name' => ...]; defaults to one. */
+    public static function newChatMembers(array $users = [], array $overrides = []): Update
+    {
+        $users = array_map(
+            fn(array $u) => array_merge(['is_bot' => false, 'first_name' => 'Joiner'], $u),
+            $users ?: [['id' => 300]],
+        );
+
+        return self::groupMedia(['new_chat_members' => $users], $overrides);
+    }
+
+    public static function leftChatMember(int $userId = 300, array $overrides = []): Update
+    {
+        return self::groupMedia(['left_chat_member' => ['id' => $userId, 'is_bot' => false, 'first_name' => 'Leaver']], $overrides);
+    }
+
+    public static function inlineQuery(string $query = '', array $overrides = []): Update
+    {
+        return self::raw(self::mergeOverrides([
+            'update_id'    => self::$nextUpdateId++,
+            'inline_query' => [
+                'id'     => 'iq' . self::$nextUpdateId,
+                'from'   => ['id' => 200, 'is_bot' => false, 'first_name' => 'Test'],
+                'query'  => $query,
+                'offset' => '',
+            ],
+        ], $overrides));
+    }
+
+    /**
+     * A my_chat_member / chat_member update. $type is the update key
+     * ('my_chat_member' or 'chat_member'); statuses are Telegram's
+     * ('member', 'administrator', 'left', 'kicked', ...).
+     */
+    public static function chatMember(string $newStatus = 'member', string $oldStatus = 'left', string $type = 'chat_member', array $overrides = []): Update
+    {
+        $member = fn(string $status) => ['status' => $status, 'user' => ['id' => 300, 'is_bot' => false, 'first_name' => 'Member']];
+
+        return self::raw(self::mergeOverrides([
+            'update_id' => self::$nextUpdateId++,
+            $type        => [
+                'chat'            => ['id' => -100, 'type' => 'supergroup', 'title' => 'Group'],
+                'from'            => ['id' => 200, 'is_bot' => false, 'first_name' => 'Test'],
+                'date'            => time(),
+                'old_chat_member' => $member($oldStatus),
+                'new_chat_member' => $member($newStatus),
+            ],
+        ], $overrides));
+    }
+
+    public static function myChatMember(string $newStatus = 'member', string $oldStatus = 'left', array $overrides = []): Update
+    {
+        return self::chatMember($newStatus, $oldStatus, 'my_chat_member', $overrides);
+    }
+
+    public static function messageReaction(string $emoji = "\u{1F44D}", array $overrides = []): Update
+    {
+        return self::raw(self::mergeOverrides([
+            'update_id'        => self::$nextUpdateId++,
+            'message_reaction' => [
+                'chat'         => ['id' => 100, 'type' => 'private'],
+                'message_id'   => 1,
+                'user'         => ['id' => 200, 'is_bot' => false, 'first_name' => 'Test'],
+                'date'         => time(),
+                'old_reaction' => [],
+                'new_reaction' => [['type' => 'emoji', 'emoji' => $emoji]],
+            ],
+        ], $overrides));
+    }
+
+    /** Like media(), but in a supergroup — service messages never occur in private chats. */
+    private static function groupMedia(array $mediaField, array $overrides): Update
+    {
+        return self::media($mediaField, self::mergeOverrides([
+            'message' => ['chat' => ['id' => -100, 'type' => 'supergroup', 'title' => 'Group']],
+        ], $overrides));
+    }
+
     private static function media(array $mediaField, array $overrides): Update
     {
         return self::raw(self::mergeOverrides([

@@ -321,6 +321,84 @@ class BotInstance
         return $this;
     }
 
+    public function onVideo(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('video', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onVoice(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('voice', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onAudio(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('audio', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onVideoNote(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('video_note', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onSticker(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('sticker', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onAnimation(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('animation', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onLocation(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('location', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onContact(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('contact', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onVenue(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('venue', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onNewChatMembers(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('new_chat_members', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onLeftChatMember(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('left_chat_member', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onSuccessfulPayment(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('successful_payment', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
+    public function onWebAppData(callable|string $handler, array $middleware = []): static
+    {
+        $this->router->addRoute('web_app_data', '*', $handler, middleware: $middleware);
+        return $this;
+    }
+
     public function onStep(string $step, callable|string $handler, array $types = ['text'], array $middleware = []): static
     {
         $this->router->addRoute('step', $step, $handler, $types, $middleware);

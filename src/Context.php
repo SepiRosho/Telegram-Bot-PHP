@@ -124,49 +124,80 @@ class Context
     // Shorthand API calls
     // -------------------------------------------------------------------------
 
+    /**
+     * Where a reply has to go for it to land next to the message being answered.
+     *
+     * A forum supergroup keeps one conversation per topic; a send without
+     * message_thread_id goes to the General topic, so a bot answering in topic
+     * 12 would reply somewhere the user isn't looking. A business-account chat
+     * likewise needs business_connection_id or the bot talks as itself, not as
+     * the account. Both are filled in from the message being answered; passing
+     * the key yourself (null included, to post to General) always wins.
+     */
+    private function routed(array $options): array
+    {
+        $source = $this->update->callbackQuery?->message ?? $this->message();
+
+        if ($source === null) {
+            return $options;
+        }
+
+        if ($source->isTopicMessage && $source->messageThreadId !== null
+            && !array_key_exists('message_thread_id', $options)) {
+            $options['message_thread_id'] = $source->messageThreadId;
+        }
+
+        if ($source->businessConnectionId !== null
+            && !array_key_exists('business_connection_id', $options)) {
+            $options['business_connection_id'] = $source->businessConnectionId;
+        }
+
+        return $options;
+    }
+
     public function reply(string $text, array $options = []): Message
     {
-        return $this->api->sendMessage($this->chatId(), $text, $options);
+        return $this->api->sendMessage($this->chatId(), $text, $this->routed($options));
     }
 
     public function replyWithPhoto(string|InputFile $photo, array $options = []): Message
     {
-        return $this->api->sendPhoto($this->chatId(), $photo, $options);
+        return $this->api->sendPhoto($this->chatId(), $photo, $this->routed($options));
     }
 
     public function replyWithDocument(string|InputFile $document, array $options = []): Message
     {
-        return $this->api->sendDocument($this->chatId(), $document, $options);
+        return $this->api->sendDocument($this->chatId(), $document, $this->routed($options));
     }
 
     public function replyWithVideo(string|InputFile $video, array $options = []): Message
     {
-        return $this->api->sendVideo($this->chatId(), $video, $options);
+        return $this->api->sendVideo($this->chatId(), $video, $this->routed($options));
     }
 
     public function replyWithAudio(string|InputFile $audio, array $options = []): Message
     {
-        return $this->api->sendAudio($this->chatId(), $audio, $options);
+        return $this->api->sendAudio($this->chatId(), $audio, $this->routed($options));
     }
 
     public function replyWithVoice(string|InputFile $voice, array $options = []): Message
     {
-        return $this->api->sendVoice($this->chatId(), $voice, $options);
+        return $this->api->sendVoice($this->chatId(), $voice, $this->routed($options));
     }
 
     public function replyWithSticker(string|InputFile $sticker, array $options = []): Message
     {
-        return $this->api->sendSticker($this->chatId(), $sticker, $options);
+        return $this->api->sendSticker($this->chatId(), $sticker, $this->routed($options));
     }
 
     public function replyWithLocation(float $latitude, float $longitude, array $options = []): Message
     {
-        return $this->api->sendLocation($this->chatId(), $latitude, $longitude, $options);
+        return $this->api->sendLocation($this->chatId(), $latitude, $longitude, $this->routed($options));
     }
 
     public function typing(): bool
     {
-        return $this->api->sendChatAction($this->chatId(), 'typing');
+        return $this->api->sendChatAction($this->chatId(), 'typing', $this->routed([]));
     }
 
     /**
@@ -313,7 +344,7 @@ class Context
 
     public function sendChatAction(string $action): bool
     {
-        return $this->api->sendChatAction($this->chatId(), $action);
+        return $this->api->sendChatAction($this->chatId(), $action, $this->routed([]));
     }
 
     // -------------------------------------------------------------------------

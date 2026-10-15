@@ -178,6 +178,71 @@ class Bot
         return static::getInstance()->onStep($step, $handler, $types, $middleware);
     }
 
+    public static function onVideo(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onVideo($handler, $middleware);
+    }
+
+    public static function onVoice(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onVoice($handler, $middleware);
+    }
+
+    public static function onAudio(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onAudio($handler, $middleware);
+    }
+
+    public static function onVideoNote(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onVideoNote($handler, $middleware);
+    }
+
+    public static function onSticker(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onSticker($handler, $middleware);
+    }
+
+    public static function onAnimation(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onAnimation($handler, $middleware);
+    }
+
+    public static function onLocation(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onLocation($handler, $middleware);
+    }
+
+    public static function onContact(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onContact($handler, $middleware);
+    }
+
+    public static function onVenue(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onVenue($handler, $middleware);
+    }
+
+    public static function onNewChatMembers(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onNewChatMembers($handler, $middleware);
+    }
+
+    public static function onLeftChatMember(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onLeftChatMember($handler, $middleware);
+    }
+
+    public static function onSuccessfulPayment(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onSuccessfulPayment($handler, $middleware);
+    }
+
+    public static function onWebAppData(callable|string $handler, array $middleware = []): BotInstance
+    {
+        return static::getInstance()->onWebAppData($handler, $middleware);
+    }
+
     public static function onUnknownCommand(callable|string $handler, array $middleware = []): BotInstance
     {
         return static::getInstance()->onUnknownCommand($handler, $middleware);

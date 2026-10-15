@@ -28,6 +28,9 @@ class Router
         'chat_boost',
         'removed_chat_boost',
         'message_reaction_count',
+        // Service messages: Telegram only emits these inside groups.
+        'new_chat_members',
+        'left_chat_member',
     ];
 
     private array $routes = [];
@@ -261,6 +264,19 @@ class Router
                 && $this->matchesPattern($route->pattern, $update->callbackQuery->data ?? ''),
             'photo'               => $update->message?->photo !== null,
             'document'            => $update->message?->document !== null,
+            'video'               => $update->message?->video !== null,
+            'voice'               => $update->message?->voice !== null,
+            'audio'               => $update->message?->audio !== null,
+            'video_note'          => $update->message?->videoNote !== null,
+            'sticker'             => $update->message?->sticker !== null,
+            'animation'           => $update->message?->animation !== null,
+            'location'            => $update->message?->location !== null,
+            'contact'             => $update->message?->contact !== null,
+            'venue'               => $update->message?->venue !== null,
+            'new_chat_members'    => $update->message?->newChatMembers !== null,
+            'left_chat_member'    => $update->message?->leftChatMember !== null,
+            'successful_payment'  => $update->message?->successfulPayment !== null,
+            'web_app_data'        => $update->message?->webAppData !== null,
             'inline_query'        => $update->inlineQuery !== null,
             'chosen_inline_result' => $update->chosenInlineResult !== null,
             'poll'                => $update->poll !== null,

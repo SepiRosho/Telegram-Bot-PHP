@@ -1,7 +1,7 @@
 {
     "library": "devflow/telegram-bot",
-    "version": "1.19.0",
-    "generated_at": "2026-10-15T07:29:41+00:00",
+    "version": "1.20.0",
+    "generated_at": "2026-10-15T07:51:37+00:00",
     "generator": "vendor/bin/devflow ai:manifest",
     "rules": [
         "Every $options array (including reply_markup) must be a PHP array. Never call json_encode() yourself — HttpClient encodes it, and pre-encoding produces a double-encoded value Telegram silently ignores.",
@@ -123,6 +123,18 @@
     },
     "routes": [
         {
+            "method": "onAnimation",
+            "router_type": "animation",
+            "signature": "onAnimation(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onAudio",
+            "router_type": "audio",
+            "signature": "onAudio(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
             "method": "onBusinessConnection",
             "router_type": "business_connection",
             "signature": "onBusinessConnection(callable|string $handler, array $middleware = []): static",
@@ -177,6 +189,12 @@
             "on_facade": true
         },
         {
+            "method": "onContact",
+            "router_type": "contact",
+            "signature": "onContact(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
             "method": "onDeletedBusinessMessages",
             "router_type": "deleted_business_messages",
             "signature": "onDeletedBusinessMessages(callable|string $handler, array $middleware = []): static",
@@ -219,6 +237,18 @@
             "on_facade": true
         },
         {
+            "method": "onLeftChatMember",
+            "router_type": "left_chat_member",
+            "signature": "onLeftChatMember(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onLocation",
+            "router_type": "location",
+            "signature": "onLocation(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
             "method": "onManagedBot",
             "router_type": "managed_bot",
             "signature": "onManagedBot(callable|string $handler, array $middleware = []): static",
@@ -246,6 +276,12 @@
             "method": "onMyChatMember",
             "router_type": "my_chat_member",
             "signature": "onMyChatMember(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onNewChatMembers",
+            "router_type": "new_chat_members",
+            "signature": "onNewChatMembers(callable|string $handler, array $middleware = []): static",
             "on_facade": true
         },
         {
@@ -297,6 +333,18 @@
             "on_facade": true
         },
         {
+            "method": "onSticker",
+            "router_type": "sticker",
+            "signature": "onSticker(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onSuccessfulPayment",
+            "router_type": "successful_payment",
+            "signature": "onSuccessfulPayment(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
             "method": "onText",
             "router_type": "text",
             "signature": "onText(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): static",
@@ -312,6 +360,36 @@
             "method": "onUpdate",
             "router_type": "update",
             "signature": "onUpdate(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onVenue",
+            "router_type": "venue",
+            "signature": "onVenue(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onVideo",
+            "router_type": "video",
+            "signature": "onVideo(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onVideoNote",
+            "router_type": "video_note",
+            "signature": "onVideoNote(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onVoice",
+            "router_type": "voice",
+            "signature": "onVoice(callable|string $handler, array $middleware = []): static",
+            "on_facade": true
+        },
+        {
+            "method": "onWebAppData",
+            "router_type": "web_app_data",
+            "signature": "onWebAppData(callable|string $handler, array $middleware = []): static",
             "on_facade": true
         }
     ],
@@ -603,6 +681,14 @@
             "signature": "log(mixed $data): void"
         },
         {
+            "name": "onAnimation",
+            "signature": "onAnimation(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onAudio",
+            "signature": "onAudio(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
             "name": "onCallbackQuery",
             "signature": "onCallbackQuery(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): BotInstance"
         },
@@ -627,6 +713,10 @@
             "signature": "onCommand(string $command, callable|string $handler, array $middleware = []): BotInstance"
         },
         {
+            "name": "onContact",
+            "signature": "onContact(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
             "name": "onDocument",
             "signature": "onDocument(callable|string $handler, array $middleware = []): BotInstance"
         },
@@ -643,12 +733,24 @@
             "signature": "onInlineQuery(callable|string $handler, array $middleware = []): BotInstance"
         },
         {
+            "name": "onLeftChatMember",
+            "signature": "onLeftChatMember(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onLocation",
+            "signature": "onLocation(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
             "name": "onMessage",
             "signature": "onMessage(callable|string $handler, array $middleware = []): BotInstance"
         },
         {
             "name": "onMyChatMember",
             "signature": "onMyChatMember(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onNewChatMembers",
+            "signature": "onNewChatMembers(callable|string $handler, array $middleware = []): BotInstance"
         },
         {
             "name": "onPhoto",
@@ -675,6 +777,14 @@
             "signature": "onStep(string $step, callable|string $handler, array $types = [\"text\"], array $middleware = []): BotInstance"
         },
         {
+            "name": "onSticker",
+            "signature": "onSticker(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onSuccessfulPayment",
+            "signature": "onSuccessfulPayment(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
             "name": "onText",
             "signature": "onText(callable|string $patternOrHandler, callable|string|null $handler = null, array $middleware = []): BotInstance"
         },
@@ -685,6 +795,26 @@
         {
             "name": "onUpdate",
             "signature": "onUpdate(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onVenue",
+            "signature": "onVenue(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onVideo",
+            "signature": "onVideo(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onVideoNote",
+            "signature": "onVideoNote(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onVoice",
+            "signature": "onVoice(callable|string $handler, array $middleware = []): BotInstance"
+        },
+        {
+            "name": "onWebAppData",
+            "signature": "onWebAppData(callable|string $handler, array $middleware = []): BotInstance"
         },
         {
             "name": "poll",
@@ -1006,7 +1136,7 @@
         },
         {
             "name": "editMessageReplyMarkup",
-            "signature": "editMessageReplyMarkup(string|int $chatId, int $messageId, array $replyMarkup): Message"
+            "signature": "editMessageReplyMarkup(string|int $chatId, int $messageId, array $replyMarkup, array $options = []): Message"
         },
         {
             "name": "editMessageText",
@@ -1054,7 +1184,7 @@
         },
         {
             "name": "getChatAdministrators",
-            "signature": "getChatAdministrators(string|int $chatId): array"
+            "signature": "getChatAdministrators(string|int $chatId, array $options = []): array"
         },
         {
             "name": "getChatGifts",
@@ -1182,7 +1312,7 @@
         },
         {
             "name": "pinChatMessage",
-            "signature": "pinChatMessage(string|int $chatId, int $messageId, bool $disableNotification = false): bool"
+            "signature": "pinChatMessage(string|int $chatId, int $messageId, bool $disableNotification = false, array $options = []): bool"
         },
         {
             "name": "postStory",
@@ -1262,7 +1392,7 @@
         },
         {
             "name": "sendChatAction",
-            "signature": "sendChatAction(string|int $chatId, string $action): bool"
+            "signature": "sendChatAction(string|int $chatId, string $action, array $options = []): bool"
         },
         {
             "name": "sendChatJoinRequestWebApp",
@@ -1530,7 +1660,7 @@
         },
         {
             "name": "unpinChatMessage",
-            "signature": "unpinChatMessage(string|int $chatId, ?int $messageId = null): bool"
+            "signature": "unpinChatMessage(string|int $chatId, ?int $messageId = null, array $options = []): bool"
         },
         {
             "name": "upgradeGift",

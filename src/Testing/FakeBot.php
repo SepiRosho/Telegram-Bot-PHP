@@ -20,7 +20,7 @@ class FakeBot
     private FakeHttpClient $http;
     private FakeUserRepository $users;
 
-    public function __construct(string $token = 'fake-token', array $config = [])
+    public function __construct(string $token = 'fake-token', private array $config = [])
     {
         $this->http = new FakeHttpClient();
         $this->users = new FakeUserRepository();
@@ -50,7 +50,10 @@ class FakeBot
         $this->instance->router()->dispatch(
             $update,
             $this->instance->api(),
-            [],
+            // The same config the real webhook path hands the router, so
+            // allowed_chat_types, debug, step_routes_first and
+            // auto_answer_callbacks behave in tests exactly as in production.
+            $this->config,
             $useDb ? $this->users : null,
         );
     }

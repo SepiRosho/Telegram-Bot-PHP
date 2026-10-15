@@ -127,12 +127,12 @@ class TelegramApi
         ], $options)));
     }
 
-    public function sendChatAction(int|string $chatId, string $action): bool
+    public function sendChatAction(int|string $chatId, string $action, array $options = []): bool
     {
-        return (bool) $this->http->post('sendChatAction', [
+        return (bool) $this->http->post('sendChatAction', array_merge([
             'chat_id' => $chatId,
             'action' => $action,
-        ]);
+        ], $options));
     }
 
     // -------------------------------------------------------------------------
@@ -157,13 +157,13 @@ class TelegramApi
         ], $options)));
     }
 
-    public function editMessageReplyMarkup(int|string $chatId, int $messageId, array $replyMarkup): Message
+    public function editMessageReplyMarkup(int|string $chatId, int $messageId, array $replyMarkup, array $options = []): Message
     {
-        return Message::fromArray($this->http->post('editMessageReplyMarkup', [
+        return Message::fromArray($this->http->post('editMessageReplyMarkup', array_merge([
             'chat_id' => $chatId,
             'message_id' => $messageId,
             'reply_markup' => $replyMarkup,
-        ]));
+        ], $options)));
     }
 
     /**
@@ -229,21 +229,21 @@ class TelegramApi
     // Chat administration
     // -------------------------------------------------------------------------
 
-    public function pinChatMessage(int|string $chatId, int $messageId, bool $disableNotification = false): bool
+    public function pinChatMessage(int|string $chatId, int $messageId, bool $disableNotification = false, array $options = []): bool
     {
-        return (bool) $this->http->post('pinChatMessage', [
+        return (bool) $this->http->post('pinChatMessage', array_merge([
             'chat_id' => $chatId,
             'message_id' => $messageId,
             'disable_notification' => $disableNotification,
-        ]);
+        ], $options));
     }
 
-    public function unpinChatMessage(int|string $chatId, ?int $messageId = null): bool
+    public function unpinChatMessage(int|string $chatId, ?int $messageId = null, array $options = []): bool
     {
-        return (bool) $this->http->post('unpinChatMessage', array_filter([
+        return (bool) $this->http->post('unpinChatMessage', array_filter(array_merge([
             'chat_id' => $chatId,
             'message_id' => $messageId,
-        ]));
+        ], $options)));
     }
 
     public function banChatMember(int|string $chatId, int $userId, array $options = []): bool
@@ -498,9 +498,9 @@ class TelegramApi
         return (bool) $this->http->post('deleteChatPhoto', ['chat_id' => $chatId]);
     }
 
-    public function getChatAdministrators(int|string $chatId): array
+    public function getChatAdministrators(int|string $chatId, array $options = []): array
     {
-        return $this->http->post('getChatAdministrators', ['chat_id' => $chatId]);
+        return $this->http->post('getChatAdministrators', array_merge(['chat_id' => $chatId], $options));
     }
 
     public function setChatPermissions(int|string $chatId, array $permissions, array $options = []): bool

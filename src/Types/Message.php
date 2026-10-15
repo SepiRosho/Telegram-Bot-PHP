@@ -30,6 +30,18 @@ class Message
         public readonly ?array $captionEntities = null,
         public readonly ?array $replyMarkup = null,
         public readonly array $raw = [],
+        public readonly ?int $messageThreadId = null,
+        public readonly bool $isTopicMessage = false,
+        public readonly ?string $mediaGroupId = null,
+        public readonly ?Chat $senderChat = null,
+        public readonly ?string $businessConnectionId = null,
+        public readonly ?int $editDate = null,
+        public readonly ?User $viaBot = null,
+        /** @var User[]|null Users added to the group (service message). */
+        public readonly ?array $newChatMembers = null,
+        public readonly ?User $leftChatMember = null,
+        public readonly ?SuccessfulPayment $successfulPayment = null,
+        public readonly ?array $webAppData = null,
     ) {}
 
     public static function fromArray(array $data): self
@@ -61,6 +73,19 @@ class Message
             captionEntities: $data['caption_entities'] ?? null,
             replyMarkup: $data['reply_markup'] ?? null,
             raw: $data,
+            messageThreadId: $data['message_thread_id'] ?? null,
+            isTopicMessage: (bool) ($data['is_topic_message'] ?? false),
+            mediaGroupId: $data['media_group_id'] ?? null,
+            senderChat: isset($data['sender_chat']) ? Chat::fromArray($data['sender_chat']) : null,
+            businessConnectionId: $data['business_connection_id'] ?? null,
+            editDate: $data['edit_date'] ?? null,
+            viaBot: isset($data['via_bot']) ? User::fromArray($data['via_bot']) : null,
+            newChatMembers: isset($data['new_chat_members'])
+                ? array_map(fn(array $u) => User::fromArray($u), $data['new_chat_members'])
+                : null,
+            leftChatMember: isset($data['left_chat_member']) ? User::fromArray($data['left_chat_member']) : null,
+            successfulPayment: isset($data['successful_payment']) ? SuccessfulPayment::fromArray($data['successful_payment']) : null,
+            webAppData: $data['web_app_data'] ?? null,
         );
     }
 

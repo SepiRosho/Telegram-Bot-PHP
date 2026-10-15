@@ -139,6 +139,11 @@ Every `on*()` takes an optional trailing `array $middleware = []`.
 | `onCallbackQuery($h)` | Any button press. |
 | `onStep('name.step', $h, types: ['text'])` | Flow step — **needs `database`**. |
 | `onPhoto($h)` / `onDocument($h)` | Photo / document message. |
+| `onVideo` / `onVoice` / `onAudio` / `onVideoNote` / `onSticker` / `onAnimation` | Message carrying that media. (A GIF carries both `animation` and `document`.) |
+| `onLocation` / `onContact` / `onVenue` | Shared location / contact / venue. |
+| `onSuccessfulPayment($h)` | Payment completed — **grant the purchase here**: `$ctx->message()->successfulPayment` (`invoicePayload`, `totalAmount`, `isStars()`, charge ids). |
+| `onNewChatMembers($h)` / `onLeftChatMember($h)` | Group join / leave service messages. Exempt from `allowed_chat_types` (they only occur in groups). |
+| `onWebAppData($h)` | Data sent back from a Mini App keyboard button. |
 | `onEditedMessage($h)` / `onChannelPost($h)` | Edited message / channel post. |
 | `onInlineQuery($h)` / `onChosenInlineResult($h)` | Inline mode. |
 | `onPoll($h)` / `onPollAnswer($h)` | Poll update / vote. |
@@ -201,6 +206,13 @@ $ctx->clearFlow();                   // clears step + temp_data — call when a 
 $ctx->locale(); $ctx->setLocale('fa');
 $ctx->t('welcome', ['name' => 'Ali']);
 ```
+
+`reply()`, `replyWith*()`, `typing()` and `sendChatAction()` send to the place the incoming message came
+from: inside a **forum topic** they add that topic's `message_thread_id`, and for a **business
+message** its `business_connection_id`. Pass either key in `$options` to override — `'message_thread_id'
+=> null` posts to the General topic instead. Other API calls (`Bot::sendMessage(...)`) get no such
+defaults. Useful read-only fields: `$ctx->message()->messageThreadId`, `->mediaGroupId` (album),
+`->senderChat`, `->newChatMembers`, `->successfulPayment`.
 
 ---
 
@@ -503,7 +515,14 @@ $fake->assertNotSent('sendPhoto');
 even if the handler would crash on `null` in production. Pass `['database' => false]` if you want the
 fake to match a bot that never configured the database at all.
 
-`UpdateFactory` builds updates: `command()`, `text()`, `callbackQuery()`, `photo()`.
+`UpdateFactory` builds updates: `command()`, `text()`, `callbackQuery()`, `photo()`, `voice()`, `document()`,
+`video()`, `audio()`, `videoNote()`, `sticker()`, `animation()`, `location()`, `contact()`,
+`successfulPayment()`, `newChatMembers()`, `leftChatMember()`, `inlineQuery()`, `chatMember()`,
+`myChatMember()`, `messageReaction()`; `raw()` for anything else. Every builder takes `$overrides`.
+
+`FakeBot::dispatch()` runs with the config you passed to `Bot::fake()` — `allowed_chat_types`,
+`step_routes_first`, `auto_answer_callbacks`, `debug` all apply, so a group message a private-only bot
+drops in production is dropped in the test too.
 Note `FakeUser` is an attribute bag, not your real `user_model` — full-stack tests against your own
 tables still need a real database.
 

@@ -190,6 +190,9 @@ Bot::onMessage($handler);                     // any message (text, photo, etc.)
 Bot::onCallbackQuery('pattern_*', $handler);  // callback data matching a pattern or regex
 Bot::onPhoto($handler);                       // message with photo
 Bot::onDocument($handler);                    // message with document
+Bot::onVideo($handler);   Bot::onVoice($handler);   Bot::onSticker($handler);   Bot::onLocation($handler);   Bot::onContact($handler);
+Bot::onSuccessfulPayment($handler);          // payment completed -> $ctx->message()->successfulPayment
+Bot::onNewChatMembers($handler);             // someone joined a group
 Bot::onInlineQuery($handler);                 // inline query
 Bot::onStep('wizard.step1', $handler);        // text message AND user's step matches (requires DB)
 Bot::onMyChatMember($handler);                // bot added to / removed from a chat
